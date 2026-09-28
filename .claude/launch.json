@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "basket-planner", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "/Users/kanishksingh/Documents/Swiggy basket planner", "run", "dev"], "port": 3100, "autoPort": true }
+  ]
+}

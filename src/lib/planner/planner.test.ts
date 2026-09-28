@@ -1,0 +1,122 @@
+import { describe, expect, it } from "vitest";
+import { mockSource, type CatalogSource } from "@/lib/catalog/source";
+import { normaliseProducts } from "@/lib/catalog/normalise";
+import { BlockedToolError, callReadTool } from "@/lib/catalog/mcp-source";
+import { ConstraintsSchema, type BasketPlan } from "@/lib/types";
+import { parseWithRules } from "./parse";
+import { buildPlan, clarifyQuestions, PlanError } from "./plan";
+import { applyBudgetPlan, budgetPlan, fewerBrands, replaceUnavailable, totalOf } from "./basket";
+
+const EXAMPLE =
+  "I'm hosting six people tonight. I need vegetarian snacks and breakfast items under ₹1,200, preferably from trusted brands, delivered as soon as possible.";
+
+const plan = (text: string, source: CatalogSource = mockSource) =>
+  buildPlan({ mission: text, constraints: parseWithRules(text), budgetMode: "under_budget", source, parser: "rules" });
+
+describe("parseWithRules", () => {
+  it("extracts the brief's example mission", () => {
+    const c = parseWithRules(EXAMPLE);
+    expect(c).toMatchObject({ missionType: "occasion", people: 6, budget: 1200, dietary: ["veg"], urgency: "asap", preferTrusted: true, brands: [] });
+    expect(c.categories).toEqual(expect.arrayContaining(["snacks", "breakfast"]));
+  });
+  it("reads avoid lists and budgets written as Rs", () => {
+    const c = parseWithRules("weekly groceries for 2, no rice, budget Rs 2000");
+    expect(c).toMatchObject({ missionType: "stock_up", people: 2, budget: 2000 });
+    expect(c.avoid).toContain("rice");
+  });
+});
+
+describe("clarifyQuestions", () => {
+  it("asks at most two questions, only for missing info", () => {
+    expect(clarifyQuestions(parseWithRules("snacks for a movie night"))).toHaveLength(2);
+    expect(clarifyQuestions(parseWithRules(EXAMPLE))).toHaveLength(0);
+  });
+});
+
+describe("normaliseProducts", () => {
+  it("never invents missing fields", () => {
+    const [p] = normaliseProducts({ products: [{ displayName: "X", variations: [{ skuId: "1" }] }] }, "Chips", "mock");
+    expect(p).toMatchObject({ id: "1", name: "X", availability: "unknown" });
+    expect(p.price).toBeUndefined();
+    expect(p.rating).toBeUndefined();
+  });
+  it("ignores malformed payloads", () => {
+    expect(normaliseProducts({ nope: true }, "x", "mock")).toEqual([]);
+    expect(normaliseProducts(undefined, "x", "mock")).toEqual([]);
+  });
+});
+
+describe("buildPlan", () => {
+  it("builds a veg, explained basket for the example mission", async () => {
+    const p = await plan(EXAMPLE);
+    expect(p.items.length).toBeGreaterThan(4);
+    expect(p.items.every((i) => i.product.veg !== false)).toBe(true); // eggs excluded
+    expect(p.items.every((i) => i.reason.length > 10)).toBe(true);
+    expect(p.items.find((i) => i.slot === "Chips")?.quantity).toBe(3); // 0.5 per person × 6
+  });
+  it("explains when the preferred product is out of stock", async () => {
+    const p = await buildPlan({
+      mission: "snacks",
+      constraints: ConstraintsSchema.parse({ missionType: "snack", people: 4, brands: ["Trusted Select"], categories: ["snacks"] }),
+      budgetMode: "under_budget",
+      source: mockSource,
+      parser: "rules",
+    });
+    const chips = p.items.find((i) => i.slot === "Chips")!;
+    expect(chips.product.availability).not.toBe("unavailable");
+    expect(chips.reason).toMatch(/out of stock/);
+  });
+  it("continues with partial results and warns", async () => {
+    const flaky: CatalogSource = { mode: "mock", search: (q, s) => (q === "namkeen" ? mockSource.search("__timeout", s) : mockSource.search(q, s)) };
+    const p = await plan(EXAMPLE, flaky);
+    expect(p.items.length).toBeGreaterThan(3);
+    expect(p.warnings.some((w) => w.kind === "partial")).toBe(true);
+  });
+  it("fails with a typed error when every search fails", async () => {
+    const down: CatalogSource = { mode: "mock", search: (_q, s) => mockSource.search("__ratelimit", s) };
+    await expect(plan(EXAMPLE, down)).rejects.toBeInstanceOf(PlanError);
+  });
+  it("reports zero-result must-haves", async () => {
+    const p = await buildPlan({
+      mission: "x",
+      constraints: ConstraintsSchema.parse({ missionType: "top_up", mustHaves: ["unicorn cheese"], categories: ["breakfast"] }),
+      budgetMode: "under_budget",
+      source: mockSource,
+      parser: "rules",
+    });
+    expect(p.warnings.find((w) => w.kind === "no_results")?.text).toMatch(/Unicorn cheese/);
+  });
+});
+
+describe("budget plan", () => {
+  it("drops optional first, never touches must-haves without consent", async () => {
+    const p: BasketPlan = await plan("party for 10 people with snacks, drinks and breakfast under ₹600");
+    const { steps } = budgetPlan(p);
+    expect(steps[0].kind).toBe("remove");
+    const mustSlots = new Set(p.items.filter((i) => i.priority === "must_have").map((i) => i.slot));
+    expect(steps.every((s) => !mustSlots.has(s.slot))).toBe(true);
+    const after = applyBudgetPlan(p, steps);
+    expect(totalOf(after.items)).toBeLessThan(totalOf(p.items));
+  });
+});
+
+describe("quick actions", () => {
+  it("replaces unavailable items with explanations and skips locked lines", async () => {
+    const p = await plan(EXAMPLE);
+    const forced: BasketPlan = { ...p, items: p.items.map((i, n) => (n === 0 ? { ...i, product: { ...i.product, availability: "unavailable" } } : i)) };
+    const { plan: next, changes } = replaceUnavailable(forced);
+    expect(changes).toHaveLength(1);
+    expect(next.items[0].reason).toMatch(/out of stock/);
+  });
+  it("consolidates brands", async () => {
+    const { changes } = fewerBrands(await plan(EXAMPLE));
+    expect(Array.isArray(changes)).toBe(true);
+  });
+});
+
+describe("safety", () => {
+  it("blocks every mutating Instamart tool before any network call", async () => {
+    for (const t of ["update_cart", "checkout", "confirm_order", "create_address", "clear_cart"])
+      await expect(callReadTool(t, {})).rejects.toBeInstanceOf(BlockedToolError);
+  });
+});
