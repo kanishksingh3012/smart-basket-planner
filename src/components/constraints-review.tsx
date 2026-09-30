@@ -5,6 +5,7 @@ import { Pencil, X } from "lucide-react";
 import { useState } from "react";
 import { CATEGORY_LABEL, DIETARY_LABEL } from "@/lib/format";
 import { CATEGORY_KEYS } from "@/lib/planner/intents";
+import { CUISINES } from "@/lib/recipes/data";
 import { MISSION_LABEL, MISSION_TYPES, type BudgetMode, type ClarifyQuestion, type Constraints } from "@/lib/types";
 
 type Props = {
@@ -78,6 +79,7 @@ function ListEditor({ label, values, onChange, placeholder }: { label: string; v
 export function ConstraintsReview(p: Props) {
   const c = p.constraints;
   const set = (patch: Partial<Constraints>) => p.onChange({ ...c, ...patch });
+  const canBuild = c.categories.length > 0 || c.mustHaves.length > 0 || c.dishes.length > 0 || Boolean(c.cuisine) || c.missionType === "meal_prep";
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   return (
@@ -97,7 +99,9 @@ export function ConstraintsReview(p: Props) {
       {p.questions.length > 0 && (
         <section aria-label="Quick questions" className="space-y-4 rounded-2xl bg-accent-soft p-4">
           {p.questions.map((q) => {
-            const current = q.id === "people" ? c.people : c.budget;
+            const current = q.id === "people" ? c.people : q.id === "budget" ? c.budget : c.cuisine;
+            const choose = (v: number | string) =>
+              set(q.id === "people" ? { people: Number(v) } : q.id === "budget" ? { budget: Number(v) || undefined } : { cuisine: String(v) });
             return (
               <Row key={q.id} label={q.text}>
                 <div className="flex flex-wrap gap-2">
@@ -109,7 +113,7 @@ export function ConstraintsReview(p: Props) {
                         size="sm"
                         variant={selected ? "primary" : "secondary"}
                         aria-pressed={selected}
-                        onPress={() => set(q.id === "people" ? { people: o.value } : { budget: o.value || undefined })}
+                        onPress={() => choose(o.value)}
                       >
                         {o.label}
                       </Button>
@@ -133,6 +137,33 @@ export function ConstraintsReview(p: Props) {
           ))}
         </div>
       </Row>
+
+      {(c.missionType === "meal_prep" || c.cuisine || c.dishes.length > 0) && (
+        <>
+          <Row label="Cuisine">
+            <div className="flex flex-wrap gap-2">
+              {CUISINES.map((k) => {
+                const on = c.cuisine === k;
+                return (
+                  <button key={k} type="button" onClick={() => set({ cuisine: on ? undefined : k })} aria-pressed={on} className="rounded-full capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <Chip size="sm" color={on ? "accent" : "default"} variant={on ? "primary" : "secondary"}>
+                      {k}
+                    </Chip>
+                  </button>
+                );
+              })}
+            </div>
+          </Row>
+          <ListEditor label="Dishes to cook" values={c.dishes} onChange={(v) => set({ dishes: v })} placeholder="e.g. Veg Fried Rice" />
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm">
+            <span>
+              Add pantry staples
+              <span className="block text-xs text-muted">Salt, oil, spices. Off assumes you have them.</span>
+            </span>
+            <input type="checkbox" className="size-5 accent-[var(--accent)]" checked={c.includePantry} onChange={(e) => set({ includePantry: e.target.checked })} />
+          </label>
+        </>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <label className="space-y-2">
@@ -222,11 +253,11 @@ export function ConstraintsReview(p: Props) {
 
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 p-4 backdrop-blur">
         <div className="mx-auto max-w-md">
-          <Button className="w-full" size="lg" onPress={p.onBuild} isDisabled={p.busy || (!c.categories.length && !c.mustHaves.length)}>
+          <Button className="w-full" size="lg" onPress={p.onBuild} isDisabled={p.busy || !canBuild}>
             {p.busy && <Spinner size="sm" color="current" />}
             {p.busy ? "Searching Instamart…" : "Build my basket"}
           </Button>
-          {!c.categories.length && !c.mustHaves.length && <p className="mt-2 text-center text-xs text-muted">Pick at least one thing to include.</p>}
+          {!canBuild && <p className="mt-2 text-center text-xs text-muted">Pick at least one thing to include.</p>}
         </div>
       </div>
     </div>

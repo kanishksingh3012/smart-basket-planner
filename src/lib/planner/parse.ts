@@ -1,4 +1,6 @@
 import { ConstraintsSchema, MISSION_TYPES, type Constraints, type MissionType } from "@/lib/types";
+import { CUISINES } from "@/lib/recipes/data";
+import { findDishes } from "@/lib/recipes";
 import { CATEGORY_KEYS } from "./intents";
 
 const WORD_NUM: Record<string, number> = {
@@ -14,11 +16,22 @@ const CATEGORY_WORDS: [string, RegExp][] = [
   ["staples", /\bstaples?|groceries|monthly|ration|atta|rice|dal\b/],
   ["fruits_veg", /\bveggies|vegetables|fruits?\b|sabzi/],
   ["cleaning", /\bclean|detergent|dishwash|household/],
-  ["dinner", /\bdinner|meal|cook/],
   ["pet", /\bpet|dog|cat|puppy/],
   ["baby", /\bbaby|diaper|infant|toddler/],
   ["gifting", /\bgift|present|birthday|diwali|festive/],
   ["emergency", /\bemergency|power cut|outage|urgent supplies/],
+];
+
+const CUISINE_WORDS: [string, RegExp][] = [
+  ["south indian", /south indian|dosa|idli|sambar/],
+  ["chinese", /chinese|indo-?chinese|schezwan|szechuan|hakka|manchurian/],
+  ["italian", /italian|pasta|pizza|risotto/],
+  ["thai", /\bthai\b/],
+  ["mexican", /mexican|burrito|taco|quesadilla|nachos/],
+  ["continental", /continental|pancake/],
+  ["indian", /\bindian|north indian|punjabi|desi|curry|dal\b|roti|paneer butter/],
+  // Cuisines available via the optional TheMealDB import
+  ...["japanese", "american", "british", "french", "greek", "spanish", "vietnamese", "malaysian"].map((k) => [k, new RegExp(`\\b${k}\\b`)] as [string, RegExp]),
 ];
 
 const MISSION_WORDS: [MissionType, RegExp][] = [
@@ -26,7 +39,7 @@ const MISSION_WORDS: [MissionType, RegExp][] = [
   ["gifting", /\bgift|present/],
   ["occasion", /\bhost|party|guests|friends (?:coming |come )?over|coming over|celebrat|get-?together|potluck/],
   ["stock_up", /\bweekly|monthly|stock ?up|restock|replenish|ration/],
-  ["meal_prep", /\bmeal prep|cook|dinner|recipe/],
+  ["meal_prep", /\bmeal prep|cook|dinner|lunch|recipe|prepare|preparing|make .{0,20}(for|at home)/],
   ["snack", /\bsnack|munch|movie night/],
   ["top_up", /\brunning out|ran out|top ?up|need some|quick/],
 ];
@@ -36,7 +49,8 @@ export function parseWithRules(text: string): Constraints {
   const t = text.toLowerCase().replace(/,(?=\d{3})/g, "");
   const peopleM = t.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\s*(?:people|persons|guests|friends|adults|of us|members|pax)/);
   const forM = peopleM ?? t.match(/\b(?:for|family of|party of)\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b(?!\s*(?:rs|₹|rupees|inr|kg|g\b|l\b|ml|days?|weeks?|hours?|mins?))/);
-  const people = forM ? (WORD_NUM[forM[1]] ?? Number(forM[1])) : undefined;
+  const pair = /\b(me and my (girlfriend|boyfriend|wife|husband|partner|friend|roommate|flatmate|mom|mother|dad|father|sister|brother)|for (the )?two( of us)?|both of us|a couple|date night)\b/.test(t);
+  const people = forM ? (WORD_NUM[forM[1]] ?? Number(forM[1])) : pair ? 2 : undefined;
   const budgetM = t.match(/(?:under|below|within|less than|max(?:imum)?|budget(?: of| is)?|upto|up to)\s*(?:₹|rs\.?|inr)?\s*(\d{2,6})/) ?? t.match(/(?:₹|rs\.?\s?|inr\s?)(\d{2,6})/);
   const budget = budgetM ? Number(budgetM[1]) : undefined;
   const dietary: Constraints["dietary"] = [];
@@ -50,7 +64,10 @@ export function parseWithRules(text: string): Constraints {
     .filter((w) => !/^(more|need|sure|too|onion|garlic|sugar)/.test(w));
   const matched = CATEGORY_WORDS.filter(([, re]) => re.test(t)).map(([k]) => k);
   const categories = matched.includes("healthy_snacks") ? matched.filter((k) => k !== "snacks") : matched;
-  const missionType = MISSION_WORDS.find(([, re]) => re.test(t))?.[0] ?? (categories.includes("snacks") ? "snack" : "top_up");
+  const dishes = findDishes(text);
+  const cuisine = CUISINE_WORDS.find(([, re]) => re.test(t))?.[0];
+  const matchedMission = MISSION_WORDS.find(([, re]) => re.test(t))?.[0];
+  const missionType = (dishes.length || (cuisine && !matchedMission)) && !/party|host|guests/.test(t) ? "meal_prep" : MISSION_WORDS.find(([, re]) => re.test(t))?.[0] ?? (categories.includes("snacks") ? "snack" : "top_up");
   const urgency = /\b(asap|now|tonight|immediately|as soon as|urgent|right away|in \d+ ?min)/.test(t) ? "asap" : /\btoday|this evening\b/.test(t) ? "today" : "flexible";
   const mustHaves = [...t.matchAll(/\bmust (?:have|include)\s+([a-z ]+?)(?:[,.;]|$| and )/g)].map((m) => m[1].trim());
   return ConstraintsSchema.parse({
@@ -64,6 +81,8 @@ export function parseWithRules(text: string): Constraints {
     avoid,
     urgency,
     categories,
+    cuisine,
+    dishes,
   });
 }
 
@@ -71,11 +90,13 @@ const PROMPT = `Extract grocery shopping constraints from the user's request. Us
 missionType: one of ${MISSION_TYPES.join(", ")}.
 categories: pick from ${CATEGORY_KEYS.join(", ")} (only what the request needs).
 mustHaves: specific products the user explicitly named that are not covered by a category. avoid: items/ingredients to exclude.
-preferTrusted: true if they ask for trusted/good/premium brands without naming one. budget in rupees.`;
+preferTrusted: true if they ask for trusted/good/premium brands without naming one. budget in rupees.
+cuisine (cooking missions): one of ${CUISINES.join(", ")}. dishes: dish names they want to cook, e.g. "Veg Hakka Noodles".`;
 
 /** Rules are trusted when they found both a mission keyword and at least one category. */
 export function rulesConfident(text: string, c: Constraints): boolean {
   const t = text.toLowerCase();
+  if (c.missionType === "meal_prep") return Boolean(c.cuisine || c.dishes.length);
   return c.categories.length > 0 && MISSION_WORDS.some(([, re]) => re.test(t));
 }
 
@@ -113,6 +134,8 @@ export async function parseMission(text: string): Promise<{ c: Constraints; pars
       else if (c.people && !new RegExp(`\\b(${c.people}${word ? `|${word}` : ""})\\b`, "i").test(text)) c.people = undefined;
       c.categories = c.categories.filter((k) => CATEGORY_KEYS.includes(k));
       if (!c.categories.length) c.categories = rules.categories;
+      if (c.cuisine && !(CUISINES as readonly string[]).includes(c.cuisine.toLowerCase())) c.cuisine = rules.cuisine;
+      c.dishes = [...new Set([...rules.dishes, ...c.dishes])];
       result = { c, parser: "llm" };
     } catch (e) {
       console.warn("[parse] LLM unavailable, using rules:", e instanceof Error ? e.message.slice(0, 120) : e);

@@ -47,10 +47,6 @@ export const PLAYBOOK: Record<string, Intent[]> = {
     { slot: "Dishwash", query: "dishwash liquid", priority: "recommended", perPerson: 0 },
     { slot: "Detergent", query: "detergent", priority: "recommended", perPerson: 0 },
   ],
-  dinner: [
-    { slot: "Paneer", query: "paneer", priority: "must_have", perPerson: 0.25 },
-    { slot: "Instant noodles", query: "instant noodles", priority: "recommended", perPerson: 0.5 },
-  ],
   pet: [
     { slot: "Dog food", query: "dog food", priority: "must_have", perPerson: 0 },
     { slot: "Pet treats", query: "dog treats", priority: "optional", perPerson: 0 },
@@ -77,28 +73,29 @@ export const MISSION_DEFAULT_CATEGORIES: Record<MissionType, string[]> = {
   top_up: ["breakfast"],
   snack: ["snacks", "beverages"],
   occasion: ["snacks", "beverages", "party_supplies"],
-  meal_prep: ["fruits_veg", "dinner"],
+  meal_prep: [], // cooking missions are driven by the recipe menu (src/lib/recipes)
   gifting: ["gifting"],
   emergency: ["emergency"],
 };
 
-const MAX_INTENTS = 8;
+export const MAX_INTENTS = 12;
 
 /** Turns constraints into a small, capped set of searches (Swiggy rate-limit friendly). */
-export function buildIntents(c: Constraints): Intent[] {
+export function buildIntents(c: Constraints, max = MAX_INTENTS): Intent[] {
   const cats = (c.categories.length ? c.categories : MISSION_DEFAULT_CATEGORIES[c.missionType]).filter((k) => PLAYBOOK[k]);
-  const out: Intent[] = c.mustHaves.map((m) => ({ slot: cap(m), query: m, priority: "must_have" as const, perPerson: 0 }));
+  const out: Intent[] = c.mustHaves.map((m) => ({ slot: cap(m), query: m, priority: "must_have" as const, perPerson: 0, strict: true }));
   const vegOnly = c.dietary.includes("veg") || c.dietary.includes("vegan");
   const avoid = c.avoid.map((a) => a.toLowerCase());
   // Round-robin across categories so a capped list still covers every category.
   const lists = cats.map((k) => PLAYBOOK[k].filter((i) => !(vegOnly && i.query === "eggs") && !avoid.some((a) => i.query.includes(a))));
-  for (let r = 0; out.length < MAX_INTENTS && lists.some((l) => l[r]); r++) {
-    for (const l of lists) if (l[r] && out.length < MAX_INTENTS && !out.some((o) => o.query === l[r].query)) out.push(l[r]);
+  for (let r = 0; out.length < max && lists.some((l) => l[r]); r++) {
+    for (const l of lists) if (l[r] && out.length < max && !out.some((o) => o.query === l[r].query)) out.push(l[r]);
   }
   return out;
 }
 
 export function quantityFor(intent: Intent, people = 2): number {
+  if (intent.qty) return intent.qty;
   if (!intent.perPerson) return 1;
   return Math.min(6, Math.max(1, Math.ceil(people * intent.perPerson)));
 }

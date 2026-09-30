@@ -37,6 +37,11 @@ export const ConstraintsSchema = z.object({
   urgency: z.enum(["asap", "today", "flexible"]).default("flexible"),
   /** Product categories the mission needs, e.g. ["snacks", "breakfast"]. */
   categories: z.array(z.string()).default([]),
+  /** Cooking missions: cuisine (e.g. "chinese") and/or specific dishes (e.g. "Veg Hakka Noodles"). */
+  cuisine: z.string().optional(),
+  dishes: z.array(z.string()).default([]),
+  /** Include pantry staples (salt, oil, spices) in recipe baskets. */
+  includePantry: z.boolean().default(false),
 });
 export type Constraints = z.infer<typeof ConstraintsSchema>;
 
@@ -88,13 +93,15 @@ export type BasketPlan = {
   steps: string[];
   catalogMode: "live" | "mock";
   parser: "llm" | "rules";
+  /** Dishes the basket is built around (cooking missions). */
+  menu: { name: string; cuisine: string; source: "curated" | "themealdb" }[];
+  /** Pantry staples assumed to be at home (not added). */
+  assumedPantry: string[];
 };
 
-export type ClarifyQuestion = {
-  id: "people" | "budget";
-  text: string;
-  options: { label: string; value: number }[];
-};
+export type ClarifyQuestion =
+  | { id: "people" | "budget"; text: string; options: { label: string; value: number }[] }
+  | { id: "cuisine"; text: string; options: { label: string; value: string }[] };
 
 /** A search intent: one catalogue query that fills one basket slot. */
 export type Intent = {
@@ -103,6 +110,11 @@ export type Intent = {
   priority: Priority;
   /** Units needed per person (for quantity sizing); 0 = fixed 1 unit. */
   perPerson: number;
+  /** Recipe ingredients: exact pack count, the dishes it's for, strict name matching, pantry flag. */
+  qty?: number;
+  forDishes?: string[];
+  strict?: boolean;
+  pantry?: boolean;
 };
 
 export type SearchOutcome =

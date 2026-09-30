@@ -113,7 +113,7 @@ export function PlannerApp() {
               <ArrowLeft className="size-5" />
             </Button>
           ) : (
-            <span className="grid size-8 place-items-center rounded-lg bg-accent text-accent-foreground">
+            <span className="grid size-8 place-items-center rounded-lg bg-brand text-white">
               <ShoppingBasket aria-hidden className="size-4" />
             </span>
           )}

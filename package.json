@@ -12,7 +12,9 @@
     "check": "npm run lint && npm run typecheck && npm run test",
     "swiggy:login": "tsx scripts/swiggy-login.ts",
     "record": "tsx scripts/record-fixtures.ts",
-    "eval": "NO_MOCK_LATENCY=1 tsx scripts/eval.ts"
+    "eval": "NO_MOCK_LATENCY=1 CURATED_ONLY=1 tsx scripts/eval.ts",
+    "recipes:import": "tsx scripts/import-mealdb.ts",
+    "prebuild": "tsx scripts/import-mealdb.ts --if-missing --soft"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.84",

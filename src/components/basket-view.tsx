@@ -130,8 +130,19 @@ export function BasketView(p: Props) {
         </Alert>
       )}
 
-      {liveWarnings.map((w) => (
-        <Alert key={w.kind} status={ALERT_STATUS[w.kind]}>
+      {plan.menu?.length > 0 && (
+        <section aria-label="Menu" className="rounded-2xl border border-border bg-surface p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">Menu for {c.people ?? 2}</p>
+          <p className="mt-1 font-semibold">{plan.menu.map((m) => m.name).join(" + ")}</p>
+          {plan.assumedPantry?.length > 0 && <p className="mt-1 text-sm text-muted">Assumes you have {plan.assumedPantry.join(", ").toLowerCase()}.</p>}
+          <button type="button" onClick={p.onEditConstraints} className="mt-2 text-sm font-medium text-accent underline-offset-2 hover:underline">
+            Change dishes
+          </button>
+        </section>
+      )}
+
+      {liveWarnings.map((w, i) => (
+        <Alert key={w.kind + i} status={ALERT_STATUS[w.kind]}>
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Description>{w.text}</Alert.Description>

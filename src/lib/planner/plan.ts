@@ -12,7 +12,9 @@ import {
   type Warning,
 } from "@/lib/types";
 import { totalOf } from "./basket";
-import { buildIntents, quantityFor } from "./intents";
+import { assumedPantry, pickMenu, recipeIntents } from "@/lib/recipes";
+import { CUISINES } from "@/lib/recipes/data";
+import { buildIntents, MAX_INTENTS, quantityFor } from "./intents";
 import { explain, pickForIntent } from "./rank";
 
 /** ≤2 questions, only when the answer materially changes the basket (brief §10.2–3). */
@@ -21,6 +23,12 @@ export function clarifyQuestions(c: Constraints): ClarifyQuestion[] {
   const sized = ["occasion", "snack", "meal_prep", "stock_up", "top_up"].includes(c.missionType);
   if (!c.people && sized)
     q.push({ id: "people", text: "How many people is this for?", options: [1, 2, 4, 6, 10].map((n) => ({ label: String(n), value: n })) });
+  if (c.missionType === "meal_prep" && !c.cuisine && !c.dishes.length)
+    q.push({
+      id: "cuisine",
+      text: "What would you like to cook?",
+      options: CUISINES.map((k) => ({ label: k.replace(/\b\w/g, (m) => m.toUpperCase()), value: k })),
+    });
   if (!c.budget && c.missionType !== "emergency")
     q.push({
       id: "budget",
@@ -60,7 +68,14 @@ export async function buildPlan(args: {
   parser: "llm" | "rules";
 }): Promise<BasketPlan> {
   const { mission, constraints: c, budgetMode, source, parser } = args;
-  const intents = buildIntents(c);
+  const { menu, unknown, note } = pickMenu(c);
+  const fromRecipes = recipeIntents(menu, c);
+  // Unknown dishes are still searched by name (e.g. a ready kit) so the user gets something honest.
+  const unknownIntents: Intent[] = unknown.map((d) => ({ slot: d, query: d, priority: "must_have", perPerson: 0 }));
+  // With a menu, meal words ("breakfast") describe the menu, not a second generic basket.
+  const extraCats = menu.length ? c.categories.filter((k) => k !== "breakfast") : c.categories;
+  const rest = buildIntents({ ...c, categories: menu.length && !extraCats.length ? ["none"] : extraCats }, Math.max(0, MAX_INTENTS - fromRecipes.length - unknownIntents.length));
+  const intents = [...fromRecipes, ...unknownIntents, ...rest.filter((i) => !fromRecipes.some((r) => r.query === i.query))].slice(0, MAX_INTENTS);
   const results = await searchAll(source, intents);
 
   const failures = results.filter((r): r is Extract<SearchOutcome, { ok: false }> => !r.ok);
@@ -74,7 +89,7 @@ export async function buildPlan(args: {
   intents.forEach((intent, idx) => {
     const r = results[idx];
     if (!r.ok) return;
-    const pick = pickForIntent(r.products, c, budgetMode);
+    const pick = pickForIntent(r.products, c, budgetMode, intent.query, intent.strict);
     excluded += pick.excluded;
     if (!pick.chosen) return void missing.push(intent.slot);
     const quantity = quantityFor(intent, c.people);
@@ -90,6 +105,9 @@ export async function buildPlan(args: {
     });
   });
 
+  if (note) warnings.push({ kind: "conflict", text: note });
+  if (unknown.length)
+    warnings.push({ kind: "no_results", text: `I don't have a recipe for ${unknown.join(", ")} yet, so I searched Instamart for it by name.` });
   if (failures.length)
     warnings.push({ kind: "partial", text: `Some product details are unavailable (${failures.length} of ${results.length} searches failed). You can continue with the items we found.` });
   if (missing.length) warnings.push({ kind: "no_results", text: `Nothing suitable found for: ${missing.join(", ")}.` });
@@ -100,12 +118,27 @@ export async function buildPlan(args: {
   if (c.budget && total > c.budget) warnings.push({ kind: "budget", text: `Basket is ${inr(total - c.budget)} over your ${inr(c.budget)} budget.` });
 
   const who = [c.people && `${c.people} people`, c.budget && `under ${inr(c.budget)}`, c.dietary.length && c.dietary.join(", ")].filter(Boolean).join(" · ");
+  const pantry = assumedPantry(menu).filter(() => !c.includePantry);
   const steps = [
     `Read your mission as ${MISSION_LABEL[c.missionType]}${who ? ` (${who})` : ""}${parser === "llm" ? "" : " using basic parsing"}.`,
+    menu.length ? `Planned the menu: ${menu.map((m) => m.name).join(" + ")} (${menu.map((m) => (m.source === "curated" ? "curated recipe" : "TheMealDB")).filter((v, i, a) => a.indexOf(v) === i).join(", ")}).` : "",
+    pantry.length ? `Assumed you already have: ${pantry.join(", ")}. Turn on pantry staples to add them.` : "",
     `Searched Instamart ${source.mode === "live" ? "live" : "(sample data)"} for ${intents.length} things: ${intents.map((i) => i.query).join(", ")}.`,
     excluded ? `Filtered out ${excluded} product(s) that didn't match your dietary or avoid list.` : "",
-    "Ranked by: fits your constraints → in stock → sensible pack size → budget → brand preference.",
+    "Ranked by: fits your constraints → closest name match → in stock → budget → brand preference.",
   ].filter(Boolean);
 
-  return { mission, constraints: c, budgetMode, items, estimatedTotal: total, warnings, steps, catalogMode: source.mode, parser };
+  return {
+    mission,
+    constraints: c,
+    budgetMode,
+    items,
+    estimatedTotal: total,
+    warnings,
+    steps,
+    catalogMode: source.mode,
+    parser,
+    menu: menu.map((m) => ({ name: m.name, cuisine: m.cuisine, source: m.source })),
+    assumedPantry: pantry,
+  };
 }

@@ -2,6 +2,8 @@
 
 > **Independent prototype**, not an official Swiggy or Instamart product. It reads the catalogue through Swiggy's Instamart MCP server (or recorded sample data) and **never places orders, writes to your cart, or takes payment**.
 
+**Live demo (open on your phone):** https://smart-basket-planner.vercel.app
+
 Type a shopping *mission* — "hosting six people tonight, veg snacks and breakfast under ₹1,200, trusted brands, ASAP" — and get an **editable, availability-aware basket**. Every item says why it's there, what it costs, and whether it's in stock.
 
 ## The case in 60 seconds
@@ -14,7 +16,8 @@ Type a shopping *mission* — "hosting six people tonight, veg snacks and breakf
 | **Key design decision** | Conversational *input*, structured *editing*. No chat bubbles: the result is cards with reasons, stock chips, quantity steppers and a bottom-sheet for swaps. Editing is easier than accepting. |
 | **Technical decision** | MCP for live discovery; **local, deterministic logic** for ranking, budget and safety. The LLM never sees catalogue data, so it can't invent prices or stock. |
 | **Trade-off** | No automatic checkout. Trust and reversibility matter more than one fewer tap. "Send to Instamart cart" is shown, disabled, and explained. |
-| **Evaluation** | 22 synthetic missions → [docs/eval-report.md](docs/eval-report.md): 100% constraint extraction, 100% budget compliance, 100% unavailable-item transparency, 0.8 clarifying questions per mission. |
+| **Accuracy** | A free recipe base turns "Chinese dinner for me and my girlfriend, ₹1,000" into a menu (Veg Hakka Noodles + Chilli Paneer) and buys its real ingredients, instead of guessing from a generic "dinner" list. |
+| **Evaluation** | 26 synthetic missions → [docs/eval-report.md](docs/eval-report.md): 100% constraint extraction, 100% budget compliance, 100% unavailable-item transparency, 0.8 clarifying questions per mission. |
 | **Next** | Personalised repeat baskets (`your_go_to_items`), feedback-driven ranking, and a confirmed, reversible cart hand-off. |
 
 ## Demo script (≈90 s)
@@ -36,11 +39,13 @@ Server
  1 parse      rules first (0 tokens) → LLM only if ambiguous (Gemini Flash-Lite / Groq, 4 s cap, Zod-validated,
               numbers must appear in the user's text)
  2 clarify    ≤ 2 questions, only if headcount/budget would change the basket
- 3 intents    mission playbooks → ≤ 8 searches (no LLM)
+ 3 intents    cooking missions → recipe base picks a menu (named dishes, or a main + side for the cuisine) →
+              ingredients scaled to headcount, pantry staples assumed; other missions → playbooks; ≤ 12 searches
  4 catalogue  Instamart MCP: get_addresses (once, cached) → search_products × intents, concurrency 2,
               1 persistent session, read-only allowlist  ─ or ─  recorded / sample fixtures
  5 normalise  MCP variations → internal Product (missing fields stay missing → "Not available")
- 6 rank       veg/avoid must pass → in stock → pack size for headcount → budget → brand/rating
+ 6 rank       veg/avoid must pass → closest name match (recipe ingredients match strictly) → in stock
+              → budget → brand/rating
  7 explain    templated reasons from returned data only
    ▼
 Basket JSON → every edit, swap, undo, quick action and budget plan runs in the browser (pure functions).
@@ -48,7 +53,7 @@ Basket JSON → every edit, swap, undo, quick action and budget plan runs in the
 
 **Safety:** mutating MCP tools (`update_cart`, `checkout`, `confirm_order`, address tools…) are refused by an allowlist *before* any network call (unit-tested). Credentials live in `.swiggy/` (gitignored, 0600). Only product lists are ever recorded, never addresses or phone numbers.
 
-**Token economy:** a clear mission costs **0 LLM tokens**; an ambiguous one costs about 600. Edits cost 0. Swiggy calls per mission: 1 address lookup (cached) + ≤ 8 searches.
+**Token economy:** a clear mission costs **0 LLM tokens**; an ambiguous one costs about 600. Edits cost 0. Swiggy calls per mission: 1 address lookup (cached) + ≤ 12 searches.
 
 ## Run it
 
@@ -58,6 +63,7 @@ cp .env.example .env.local        # optional: add GOOGLE_GENERATIVE_AI_API_KEY o
 npm run dev                       # sample-data mode, works offline
 npm run check                     # lint + typecheck + tests
 npm run eval                      # regenerates docs/eval-report.md
+npm run recipes:import            # optional: ~300 extra recipes from TheMealDB (free, gitignored)
 ```
 
 **Live Instamart:** stop the dev server (the login uses port 3000), run `npm run swiggy:login` and sign in with phone + OTP, set `CATALOG_MODE=live` in `.env.local`, then `npm run dev`. Run `npm run record` to save real search results as fixtures, so the mock mode demos real catalogue data.
@@ -71,11 +77,12 @@ This is open source under the MIT licence, so fork it and adapt it. The code is 
 
 | Want to… | Change |
 |---|---|
+| Add or tune recipes | One line per dish in `src/lib/recipes/data.ts` (ingredients reference the ingredient library). Run `npm run recipes:import` to add ~300 global recipes from [TheMealDB](https://www.themealdb.com/api.php)'s free API (dev/educational key, saved to a gitignored file) |
 | Plan different missions (e.g. pharmacy, stationery, festival shopping) | Add a category + searches in `src/lib/planner/intents.ts` (`PLAYBOOK`), and keywords in `src/lib/planner/parse.ts` |
 | Tune how products are picked | Weights in `src/lib/planner/rank.ts` (`score`) |
 | Change the budget-reduction rules | `budgetPlan` in `src/lib/planner/basket.ts` |
 | Use another catalogue / store API | Implement the `CatalogSource` interface (`src/lib/catalog/source.ts`) and map results to `Product` like `normalise.ts` does |
-| Re-skin it | Tokens in `src/app/globals.css` (`--accent`, `--app-bg`…); components are HeroUI v3 |
+| Re-skin it | Tokens in `src/app/globals.css`: `--brand` (vivid orange, decoration only), `--accent` (deeper orange that keeps white text ≥ 4.5:1), `--app-bg`; components are HeroUI v3 |
 | Use a different LLM | `LLM_PROVIDER` + `getModel()` in `parse.ts` (any Vercel AI SDK provider works) |
 
 If you build with Claude Code or another coding agent, `CLAUDE.md` holds the product brief and working rules, and `docs/swiggy/DIGEST.md` the verified Swiggy MCP facts. Raw doc caches are gitignored, so re-fetch them from [Swiggy Builders Club](https://mcp.swiggy.com/builders/llms.txt) if you need them.
@@ -83,7 +90,7 @@ If you build with Claude Code or another coding agent, `CLAUDE.md` holds the pro
 Please keep the "independent prototype" disclaimer if you fork it, and follow Swiggy's MCP access terms and rate limits. Live access is granted by Swiggy, not by this repo.
 
 ## License
-[MIT](LICENSE). Swiggy and Instamart are trademarks of their owners. This project is not affiliated with or endorsed by them. Sample-catalogue brands and prices are fictional.
+[MIT](LICENSE). Curated recipes are original. TheMealDB data is fetched by each user and never committed. Swiggy and Instamart are trademarks of their owners. This project is not affiliated with or endorsed by them. Sample-catalogue brands and prices are fictional.
 
 ## Project map
 - `src/lib/catalog/`: MCP client (read-only allowlist, retries, error classes), OAuth store, normaliser, sample catalogue

@@ -26,6 +26,36 @@ describe("parseWithRules", () => {
   });
 });
 
+describe("cooking missions (recipe base)", () => {
+  const DATE = "I want to prepare dinner for me and my girlfriend. I want to have Chinese, and the budget is 1000";
+  it("reads cuisine, headcount from 'me and my girlfriend', and budget", () => {
+    expect(parseWithRules(DATE)).toMatchObject({ missionType: "meal_prep", people: 2, budget: 1000, cuisine: "chinese" });
+  });
+  it("plans a Chinese menu and buys its real ingredients, not near-misses", async () => {
+    const p = await plan(DATE);
+    expect(p.menu.map((m) => m.name)).toContain("Veg Hakka Noodles");
+    const names = p.items.map((i) => i.product.name.toLowerCase());
+    expect(names.some((n) => n.includes("hakka noodles"))).toBe(true);
+    expect(names.some((n) => n.includes("soy sauce"))).toBe(true);
+    expect(names.some((n) => n.includes("atta noodles"))).toBe(false);
+    expect(p.estimatedTotal).toBeLessThanOrEqual(1000);
+    expect(p.items.every((i) => /^For /.test(i.reason))).toBe(true);
+  });
+  it("detects named dishes and skips pantry staples unless asked", async () => {
+    const c = parseWithRules("make paneer butter masala and jeera rice for 4");
+    expect(c.dishes).toEqual(expect.arrayContaining(["Paneer Butter Masala", "Jeera Rice"]));
+    const p = await plan("make paneer butter masala and jeera rice for 4");
+    expect(p.items.some((i) => /iodised salt|garam masala/i.test(i.product.name))).toBe(false);
+    expect(p.assumedPantry).toContain("Garam masala");
+  });
+  it("asks what to cook when the cuisine is missing", () => {
+    expect(clarifyQuestions(parseWithRules("cooking dinner tonight for 3")).map((q) => q.id)).toContain("cuisine");
+  });
+  it("does not treat 'no rice' as a dish", () => {
+    expect(parseWithRules("weekly groceries for 2, no rice").dishes).toEqual([]);
+  });
+});
+
 describe("clarifyQuestions", () => {
   it("asks at most two questions, only for missing info", () => {
     expect(clarifyQuestions(parseWithRules("snacks for a movie night"))).toHaveLength(2);
@@ -79,12 +109,12 @@ describe("buildPlan", () => {
   it("reports zero-result must-haves", async () => {
     const p = await buildPlan({
       mission: "x",
-      constraints: ConstraintsSchema.parse({ missionType: "top_up", mustHaves: ["unicorn cheese"], categories: ["breakfast"] }),
+      constraints: ConstraintsSchema.parse({ missionType: "top_up", mustHaves: ["unicorn truffle"], categories: ["breakfast"] }),
       budgetMode: "under_budget",
       source: mockSource,
       parser: "rules",
     });
-    expect(p.warnings.find((w) => w.kind === "no_results")?.text).toMatch(/Unicorn cheese/);
+    expect(p.warnings.find((w) => w.kind === "no_results")?.text).toMatch(/Unicorn truffle/);
   });
 });
 

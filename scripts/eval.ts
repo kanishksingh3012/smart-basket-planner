@@ -28,7 +28,11 @@ const CASES: Case[] = [
   { tag: "pet", text: "Pet restock for my dog", expect: {} },
   { tag: "baby", text: "Running out of diapers and baby wipes", expect: { missionType: "top_up" } },
   { tag: "party-large", text: "Party for 10 people with snacks and drinks under ₹1,500", expect: { missionType: "occasion", people: 10, budget: 1500 } },
-  { tag: "meal prep", text: "Cooking paneer dinner for 4 tonight", expect: { missionType: "meal_prep", people: 4 } },
+  { tag: "meal prep", text: "Cooking paneer butter masala dinner for 4 tonight", expect: { missionType: "meal_prep", people: 4 } },
+  { tag: "cuisine dinner (date)", text: "I want to prepare dinner for me and my girlfriend. I want to have Chinese, and the budget is 1000", expect: { missionType: "meal_prep", people: 2, budget: 1000 } },
+  { tag: "named dishes", text: "Make rajma chawal and roti for a family of four", expect: { missionType: "meal_prep", people: 4 } },
+  { tag: "breakfast recipe", text: "Masala dosa breakfast for 3", expect: { missionType: "meal_prep", people: 3 } },
+  { tag: "italian veg", text: "Veg pasta night for 5 under ₹900", expect: { people: 5, budget: 900, veg: true } },
   { tag: "vague", text: "Friends coming over later, something to munch", expect: { missionType: "occasion" } },
   { tag: "multi-constraint", text: "Veg snacks and drinks for 8 guests under ₹900, no chips", expect: { missionType: "occasion", people: 8, budget: 900, veg: true, avoid: "chips" } },
   { tag: "conflicting", text: "Party for 20 people under ₹200", expect: { people: 20, budget: 200 } },
@@ -77,7 +81,7 @@ async function main() {
         if (plan.warnings.some((w) => w.kind === "unavailable") || substituted) unavailTransparent++;
       }
       if (k.source) handledErrors += plan.warnings.some((w) => w.kind === "partial") ? 1 : 0;
-      outcome = `${plan.items.length} items · ₹${Math.round(plan.estimatedTotal)} · ${plan.warnings.map((w) => w.kind).join(", ") || "no warnings"}`;
+      outcome = `${plan.menu.length ? `menu: ${plan.menu.map((m) => m.name).join(" + ")} · ` : ""}${plan.items.length} items · ₹${Math.round(plan.estimatedTotal)} · ${plan.warnings.map((w) => w.kind).join(", ") || "no warnings"}`;
     } catch (e) {
       if (e instanceof PlanError) {
         handledErrors++;

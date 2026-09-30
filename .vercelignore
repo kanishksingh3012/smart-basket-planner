@@ -1,0 +1,14 @@
+# Never upload secrets or private material
+.env*
+!.env.example
+.swiggy/
+/Project brief/
+.impeccable/
+.claude/
+# Build outputs, local caches (the server re-imports recipes itself)
+node_modules/
+.next/
+/docs/heroui/
+/docs/swiggy/*.md
+!/docs/swiggy/DIGEST.md
+/src/lib/recipes/mealdb.json

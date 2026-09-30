@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "Turn a shopping mission into an editable, availability-aware grocery basket. Independent prototype.",
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#f6f7f5" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#fc8019" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

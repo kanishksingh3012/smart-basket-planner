@@ -44,6 +44,7 @@ Never assume tool names — use exact names/args from `docs/swiggy/DIGEST.md` (v
 ## 8. Architecture
 Mobile web UI → local app server/agent endpoint → (LLM reasoning layer, Instamart MCP client) → Instamart MCP server.
 Stack: Next.js + React 19 + TypeScript, Tailwind v4 + **HeroUI v3** (react-aria based), Zod, **server-side MCP calls only**, local JSON/localStorage for saved baskets, Vercel AI SDK `generateObject` with a swappable provider (default: free Gemini Flash-Lite; alt: Groq; fallback: rule parser). Browser never receives MCP OAuth tokens.
+Cooking missions: recipe base in `src/lib/recipes/` (curated `data.ts` + optional gitignored TheMealDB import) → menu → ingredient intents (strict name matching). Visual identity: orange (`--brand` #fc8019 decorative, `--accent` #c74a0b for text/buttons, AA-safe).
 
 ## 9. Data model (UI is independent of MCP response shape)
 ```ts

@@ -54,3 +54,6 @@ next-env.d.ts
 /docs/swiggy/*.md
 !/docs/swiggy/DIGEST.md
 /docs/heroui/
+
+# Imported third-party recipes (npm run recipes:import)
+/src/lib/recipes/mealdb.json
