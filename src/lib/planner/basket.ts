@@ -22,6 +22,29 @@ export const setQty = (plan: BasketPlan, slot: string, q: number) =>
 
 export const removeItem = (plan: BasketPlan, slot: string) => update(plan, slot, () => null);
 
+/**
+ * The shopper's own addition. Locked, so budget plans and quick actions never touch it.
+ * Adding the same product again just bumps its quantity.
+ */
+export function addItem(plan: BasketPlan, product: Product, alternatives: Product[], query: string): BasketPlan {
+  const existing = plan.items.find((i) => i.product.id === product.id);
+  if (existing) return update(plan, existing.slot, (i) => ({ ...i, quantity: Math.min(i.quantity + 1, 20) }));
+  const base = query.trim().replace(/^\w/, (c) => c.toUpperCase()) || product.name;
+  let slot = base;
+  for (let n = 2; plan.items.some((i) => i.slot === slot); n++) slot = `${base} ${n}`;
+  const item: BasketItem = {
+    product,
+    quantity: 1,
+    priority: "must_have",
+    reason: "You added this.",
+    slot,
+    alternatives: alternatives.filter((a) => a.id !== product.id).slice(0, 4),
+    userApproved: true,
+    userLocked: true,
+  };
+  return withTotals(plan, [...plan.items, item]);
+}
+
 export const setPriority = (plan: BasketPlan, slot: string, priority: Priority) =>
   update(plan, slot, (i) => ({ ...i, priority, userLocked: true }));
 

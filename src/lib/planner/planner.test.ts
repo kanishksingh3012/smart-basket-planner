@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { mockSource, type CatalogSource } from "@/lib/catalog/source";
 import { normaliseProducts } from "@/lib/catalog/normalise";
+import { sampleSearch as sampleProducts } from "@/lib/catalog/sample-catalogue";
 import { BlockedToolError, callReadTool } from "@/lib/catalog/mcp-source";
 import { ConstraintsSchema, type BasketPlan } from "@/lib/types";
 import { parseWithRules } from "./parse";
 import { buildPlan, clarifyQuestions, PlanError } from "./plan";
-import { applyBudgetPlan, budgetPlan, fewerBrands, replaceUnavailable, totalOf } from "./basket";
+import { addItem, applyBudgetPlan, budgetPlan, fewerBrands, replaceUnavailable, totalOf } from "./basket";
 
 const EXAMPLE =
   "I'm hosting six people tonight. I need vegetarian snacks and breakfast items under ₹1,200, preferably from trusted brands, delivered as soon as possible.";
@@ -141,6 +142,19 @@ describe("quick actions", () => {
   it("consolidates brands", async () => {
     const { changes } = fewerBrands(await plan(EXAMPLE));
     expect(Array.isArray(changes)).toBe(true);
+  });
+});
+
+describe("adding your own items", () => {
+  it("adds a locked line that budget plans never touch, and bumps quantity on repeat", async () => {
+    const p = await plan("party for 10 people with snacks, drinks and breakfast under ₹600");
+    const [paneer] = normaliseProducts(sampleProducts("paneer"), "Paneer", "mock");
+    const once = addItem(p, paneer, [], "paneer");
+    const line = once.items.find((i) => i.product.id === paneer.id)!;
+    expect(line).toMatchObject({ quantity: 1, userLocked: true, reason: "You added this." });
+    expect(budgetPlan(once).steps.some((s) => s.slot === line.slot)).toBe(false);
+    expect(addItem(once, paneer, [], "paneer").items.find((i) => i.product.id === paneer.id)!.quantity).toBe(2);
+    expect(once.estimatedTotal).toBe(totalOf(once.items));
   });
 });
 

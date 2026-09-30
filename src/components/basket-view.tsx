@@ -4,8 +4,9 @@ import { Alert, Button, Chip } from "@heroui/react";
 import { ChevronDown, Pencil, Undo2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DIETARY_LABEL, inr, PRIORITY_LABEL } from "@/lib/format";
-import { applyBudgetPlan, budgetPlan, fewerBrands, replaceUnavailable, unknownPriceCount } from "@/lib/planner/basket";
+import { addItem, applyBudgetPlan, budgetPlan, fewerBrands, replaceUnavailable, unknownPriceCount } from "@/lib/planner/basket";
 import { MISSION_LABEL, type BasketPlan, type Priority } from "@/lib/types";
+import { AddItem } from "./add-item";
 import { ItemCard } from "./item-card";
 
 type Props = {
@@ -177,7 +178,7 @@ export function BasketView(p: Props) {
       {plan.items.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center">
           <p className="font-medium">Your basket is empty</p>
-          <p className="mt-1 text-sm text-muted">Edit your mission to add categories or must-have items.</p>
+          <p className="mt-1 text-sm text-muted">Add things below, or edit your mission to plan it again.</p>
         </div>
       )}
 
@@ -196,6 +197,12 @@ export function BasketView(p: Props) {
             </section>
           ),
       )}
+      <AddItem
+        constraints={c}
+        remaining={c.budget ? c.budget - plan.estimatedTotal : undefined}
+        onAdd={(product, alts, query) => p.onPlan(addItem(plan, product, alts, query), `Added ${product.name}`)}
+      />
+
       {essentialsOnly && plan.items.length > visible.length && (
         <p className="text-center text-sm text-muted">{plan.items.length - visible.length} non-essential item(s) hidden — they&apos;re still in the basket.</p>
       )}
