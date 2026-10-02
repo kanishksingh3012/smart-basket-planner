@@ -32,11 +32,12 @@ const num = (v: unknown): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
-function availabilityOf(p: McpProduct, v: McpVariation): Availability {
+function availabilityOf(p: McpProduct, v: McpVariation, capIsStock: boolean): Availability {
   const flag = v.isInStockAndAvailable ?? (p.inStock !== undefined || p.isAvail !== undefined ? Boolean(p.inStock && p.isAvail) : undefined);
   if (flag === undefined) return "unknown";
   if (!flag) return "unavailable";
-  if (v.maxQuantity !== undefined && v.maxQuantity > 0 && v.maxQuantity <= 2) return "low_stock";
+  // Live maxQuantity is a per-order purchase cap, not a stock level; only the sample catalogue uses it for "few left".
+  if (capIsStock && v.maxQuantity !== undefined && v.maxQuantity > 0 && v.maxQuantity <= 2) return "low_stock";
   return "available";
 }
 
@@ -79,6 +80,7 @@ export function normaliseProducts(raw: unknown, category: string, source: Produc
       ];
       out.push({
         id,
+        spinId: v.spinId,
         name,
         brand: v.brandName ?? p.brand ?? undefined,
         category,
@@ -86,7 +88,7 @@ export function normaliseProducts(raw: unknown, category: string, source: Produc
         price: num(v.price?.offerPrice),
         mrp: num(v.price?.mrp),
         quantityLabel: v.quantityDescription,
-        availability: availabilityOf(p, v),
+        availability: availabilityOf(p, v, source === "mock"),
         deliveryPromiseMinutes: slaMinutes(v.sla),
         rating: num(v.rating?.value),
         tags,

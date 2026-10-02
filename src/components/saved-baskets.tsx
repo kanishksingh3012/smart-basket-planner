@@ -13,12 +13,12 @@ export function SavedBaskets({ saved, onOpen, onReplan, onDelete, onNew }: Props
     <div className="flex flex-1 flex-col gap-4 pt-2">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Saved baskets</h1>
-        <p className="text-sm text-muted">Reuse a mission. Re-planning fetches fresh prices and stock.</p>
+        <p className="text-sm text-muted">Reuse a basket you&apos;ve saved. Re-planning checks current prices and stock.</p>
       </div>
       {saved.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center">
           <p className="font-medium">No saved baskets yet</p>
-          <p className="mt-1 text-sm text-muted">Save one from the basket preview — e.g. &ldquo;Weekly essentials&rdquo; or &ldquo;Friday snacks&rdquo;.</p>
+          <p className="mt-1 text-sm text-muted">Save one from the basket preview, for example &ldquo;Weekly essentials&rdquo; or &ldquo;Friday snacks&rdquo;.</p>
         </div>
       ) : (
         <ul className="space-y-2">
@@ -45,7 +45,7 @@ export function SavedBaskets({ saved, onOpen, onReplan, onDelete, onNew }: Props
         </ul>
       )}
       <Button variant="tertiary" onPress={onNew}>
-        Start a new mission
+        Plan a new basket
       </Button>
     </div>
   );

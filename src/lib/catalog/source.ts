@@ -39,7 +39,7 @@ export const mockSource: CatalogSource = {
   },
 };
 
-export async function getSource(): Promise<CatalogSource> {
-  if (process.env.CATALOG_MODE === "live") return (await import("./mcp-source")).mcpSource;
+export async function getSource(addressId?: string): Promise<CatalogSource> {
+  if (process.env.CATALOG_MODE === "live") return (await import("./mcp-source")).liveSource(addressId);
   return mockSource;
 }

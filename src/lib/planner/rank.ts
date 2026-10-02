@@ -80,7 +80,7 @@ export function explain(intent: Intent, p: Product, qty: number, c: Constraints,
   else if ((c.preferTrusted || false) && (p.rating ?? 0) >= 4.4) parts.push(`well rated (${p.rating}★)`);
   const cheaper = pick.alternatives.every((a) => a.price === undefined || p.price === undefined || p.price <= a.price);
   if (!pick.skippedPreferred && cheaper && pick.alternatives.length && p.price !== undefined) parts.push("lowest price among the options");
-  if (intent.strict && relevance(intent.query, p) < 1) parts.push(`closest match for "${intent.query}", so please check it`);
+  if (intent.strict && relevance(intent.query, p) < 1) parts.push(`closest match we found for "${intent.query}", please check it`);
   if (p.availability === "low_stock") parts.push("few left");
   return parts.join(" · ") + ".";
 }

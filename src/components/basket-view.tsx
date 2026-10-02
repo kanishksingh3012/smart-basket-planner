@@ -46,7 +46,7 @@ export function BasketView(p: Props) {
   return (
     <div className="flex flex-1 flex-col gap-4 pb-32">
       {/* Goal stays visible */}
-      <section aria-label="Your mission" className="sticky top-0 z-10 -mx-4 border-b border-border bg-app/95 px-4 py-3 backdrop-blur">
+      <section aria-label="Your request" className="sticky top-0 z-10 -mx-4 border-b border-border bg-app/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <Chip size="sm" color="accent" variant="primary">
@@ -60,7 +60,7 @@ export function BasketView(p: Props) {
             ))}
             {c.urgency === "asap" && <Chip size="sm" variant="secondary">ASAP</Chip>}
           </div>
-          <Button size="sm" variant="ghost" onPress={p.onEditConstraints} aria-label="Edit mission and constraints">
+          <Button size="sm" variant="ghost" onPress={p.onEditConstraints} aria-label="Edit your request">
             <Pencil className="size-4" /> Edit
           </Button>
         </div>
@@ -94,7 +94,7 @@ export function BasketView(p: Props) {
             <Alert.Description>
               {reduction.steps.length ? (
                 <>
-                  Here&apos;s how I&apos;d bring it down:
+                  Here&apos;s how to bring it back under budget:
                   <ol className="mt-1 list-decimal space-y-0.5 pl-5">
                     {reduction.steps.map((s) => (
                       <li key={s.slot + s.kind}>
@@ -108,9 +108,9 @@ export function BasketView(p: Props) {
               )}
               {reduction.mustHaveOver && !confirmMust && (
                 <p className="mt-2">
-                  Still {inr(reduction.over)} over without touching must-haves.{" "}
+                  That still leaves you {inr(reduction.over)} over.{" "}
                   <button type="button" className="font-medium underline" onClick={() => setConfirmMust(true)}>
-                    Also look for cheaper must-haves
+                    Find cheaper options for must-haves too
                   </button>
                 </p>
               )}
@@ -150,7 +150,7 @@ export function BasketView(p: Props) {
           </Alert.Content>
         </Alert>
       ))}
-      {unknownPrices > 0 && <p className="text-sm text-muted">{unknownPrices} item(s) have no price from Instamart and aren&apos;t in the total.</p>}
+      {unknownPrices > 0 && <p className="text-sm text-muted">Instamart didn&apos;t return a price for {unknownPrices} item(s), so they aren&apos;t in the total.</p>}
 
       <nav aria-label="Quick actions" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
         <Button size="sm" variant="secondary" className="shrink-0" onPress={() => p.onPlan({ ...plan, constraints: { ...c, budget: 1000 } }, "Budget set to ₹1,000")}>
@@ -178,7 +178,7 @@ export function BasketView(p: Props) {
       {plan.items.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center">
           <p className="font-medium">Your basket is empty</p>
-          <p className="mt-1 text-sm text-muted">Add things below, or edit your mission to plan it again.</p>
+          <p className="mt-1 text-sm text-muted">Add items below, or edit your request to plan again.</p>
         </div>
       )}
 
@@ -204,12 +204,12 @@ export function BasketView(p: Props) {
       />
 
       {essentialsOnly && plan.items.length > visible.length && (
-        <p className="text-center text-sm text-muted">{plan.items.length - visible.length} non-essential item(s) hidden — they&apos;re still in the basket.</p>
+        <p className="text-center text-sm text-muted">{plan.items.length - visible.length} non-essential item(s) hidden. They&apos;re still in your basket.</p>
       )}
 
       <details className="group rounded-2xl border border-border bg-surface p-4">
         <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium">
-          What I did <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+          How this basket was planned <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
         </summary>
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
           {plan.steps.map((s) => (

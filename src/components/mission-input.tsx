@@ -4,10 +4,10 @@ import { Button, Spinner } from "@heroui/react";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 const EXAMPLES = [
-  "Hosting 6 people tonight — veg snacks and breakfast under ₹1,200, trusted brands, ASAP",
+  "Hosting 6 people tonight. Veg snacks and breakfast under ₹1,200, trusted brands, as soon as possible",
   "Weekly groceries for 2, budget ₹2,000, no rice",
   "Healthy snacks for the office, 4 people, under ₹800",
-  "Power cut emergency — need supplies now",
+  "Power cut at home, need emergency supplies now",
   "Birthday gift hamper under ₹1,000",
 ];
 
@@ -18,7 +18,7 @@ export function MissionInput({ value, onChange, onSubmit, busy, savedCount, onSa
     <div className="flex flex-1 flex-col gap-6">
       <div className="space-y-2 pt-4">
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight">What are you shopping for?</h1>
-        <p className="text-ink-soft">Describe the occasion or need. I&apos;ll build a basket you can check and edit before anything happens.</p>
+        <p className="text-ink-soft">Tell us the occasion, how many people and your budget. We&apos;ll plan a basket you can review and edit.</p>
       </div>
 
       <form
@@ -29,7 +29,7 @@ export function MissionInput({ value, onChange, onSubmit, busy, savedCount, onSa
         }}
       >
         <label htmlFor="mission" className="sr-only">
-          Your shopping mission
+          What you need
         </label>
         <textarea
           id="mission"
@@ -40,18 +40,18 @@ export function MissionInput({ value, onChange, onSubmit, busy, savedCount, onSa
           }}
           rows={4}
           maxLength={600}
-          placeholder="e.g. Friends coming over at 8 — 5 people, veg snacks and drinks, under ₹1,000"
+          placeholder="Friends are coming over at 8. Veg snacks and drinks for 5, under ₹1,000"
           className="w-full resize-none rounded-2xl border border-border bg-surface p-4 text-base leading-relaxed shadow-sm outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
         />
         <Button type="submit" className="w-full" size="lg" isDisabled={value.trim().length < 3 || busy}>
           {busy ? <Spinner size="sm" color="current" /> : <Sparkles className="size-4" />}
-          {busy ? "Understanding your mission…" : "Plan my basket"}
+          {busy ? "Reading your request…" : "Plan my basket"}
         </Button>
       </form>
 
       <section aria-labelledby="examples-h" className="space-y-2">
         <h2 id="examples-h" className="text-sm font-medium text-muted">
-          Try a mission
+          Try an example
         </h2>
         <ul className="space-y-2">
           {EXAMPLES.map((ex) => (

@@ -48,7 +48,10 @@ export type Constraints = z.infer<typeof ConstraintsSchema>;
 export type Availability = "available" | "low_stock" | "unavailable" | "unknown";
 
 export type Product = {
+  /** Instamart skuId. */
   id: string;
+  /** Instamart spinId — needed with the skuId to put this exact pack in the cart. */
+  spinId?: string;
   name: string;
   brand?: string;
   category?: string;

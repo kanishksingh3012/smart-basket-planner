@@ -4,6 +4,7 @@ import { normaliseProducts } from "./normalise";
 import { IM_SERVER_URL, swiggyOAuthProvider } from "./swiggy-oauth";
 import type { CatalogErrorKind, SearchOutcome } from "@/lib/types";
 import type { CatalogSource } from "./source";
+import { mergeCart, type CartLine } from "@/lib/planner/basket";
 
 /** Read-only allowlist. Every mutating Instamart tool (update_cart, checkout, …) is refused here. */
 const ALLOWED_TOOLS = new Set(["get_addresses", "search_products", "your_go_to_items", "get_cart"]);
@@ -13,7 +14,6 @@ export class BlockedToolError extends Error {}
 
 /** One MCP session per server process (Swiggy rate-limits auth handshakes separately). */
 let clientPromise: Promise<Client> | null = null;
-let addressId: string | null = null;
 
 async function getClient(): Promise<Client> {
   if (!clientPromise) {
@@ -34,6 +34,10 @@ async function getClient(): Promise<Client> {
 
 export async function callReadTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   if (!ALLOWED_TOOLS.has(name)) throw new BlockedToolError(`Tool "${name}" is blocked in this prototype`);
+  return callTool(name, args);
+}
+
+async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   const client = await getClient();
   const res = await client.callTool({ name, arguments: args }, undefined, { timeout: TIMEOUT_MS });
   const payload = extractPayload(res);
@@ -86,28 +90,71 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function getAddressId(): Promise<string> {
-  if (addressId) return addressId;
-  const data = (await withRetry(() => callReadTool("get_addresses", {}))) as unknown;
-  const list = Array.isArray(data) ? data : ((data as { addresses?: unknown[] })?.addresses ?? []);
-  const first = (list as { id?: string; addressId?: string }[])[0];
-  const id = first?.id ?? first?.addressId;
-  if (!id) throw Object.assign(new Error("No saved delivery address on this Swiggy account."), { domain: true });
-  addressId = id;
-  return id;
+export type Address = { id: string; label: string };
+let addresses: Address[] | null = null;
+
+/** Saved addresses as id + label only. The address line and phone number never leave this function. */
+export async function listAddresses(): Promise<Address[]> {
+  if (addresses) return addresses;
+  const data = (await withRetry(() => callReadTool("get_addresses", {}))) as { addresses?: { id: string; addressTag?: string; addressCategory?: string }[] };
+  addresses = (data.addresses ?? []).map((a, i) => ({ id: a.id, label: a.addressTag || a.addressCategory || `Address ${i + 1}` }));
+  return addresses;
 }
 
-export const mcpSource: CatalogSource = {
-  mode: "live",
-  async search(query, slot): Promise<SearchOutcome> {
-    try {
-      const id = await getAddressId();
-      const data = await withRetry(() => callReadTool("search_products", { addressId: id, query }));
-      return { ok: true, products: normaliseProducts(data, slot, "instamart-mcp").slice(0, 12) };
-    } catch (e) {
-      const { kind, message } = classify(e);
-      if (kind === "auth_required") clientPromise = null;
-      return { ok: false, error: kind, message };
-    }
-  },
-};
+async function resolveAddress(id?: string): Promise<Address> {
+  const list = await listAddresses();
+  const a = list.find((x) => x.id === id) ?? list[0];
+  if (!a) throw Object.assign(new Error("No saved delivery address on this Swiggy account."), { domain: true });
+  return a;
+}
+
+/** Stock and prices depend on the delivery address, so every search is bound to one. */
+export function liveSource(addressId?: string): CatalogSource {
+  return {
+    mode: "live",
+    async search(query, slot): Promise<SearchOutcome> {
+      try {
+        const { id } = await resolveAddress(addressId);
+        const data = await withRetry(() => callReadTool("search_products", { addressId: id, query }));
+        return { ok: true, products: normaliseProducts(data, slot, "instamart-mcp").slice(0, 24) };
+      } catch (e) {
+        const { kind, message } = classify(e);
+        if (kind === "auth_required") clientPromise = null;
+        return { ok: false, error: kind, message };
+      }
+    },
+  };
+}
+export const mcpSource = liveSource();
+
+type RawCart = { items?: { spinId: string; skuId: string; itemName?: string; quantity: number }[]; cartTotalAmount?: string; billBreakdown?: { toPay?: { value?: string } } };
+const lines = (c: RawCart): CartLine[] => (c.items ?? []).map((i) => ({ spinId: i.spinId, skuId: i.skuId, quantity: i.quantity, name: i.itemName }));
+
+export async function getCart(): Promise<{ items: CartLine[]; total?: string }> {
+  const c = (await withRetry(() => callReadTool("get_cart", {}))) as RawCart;
+  return { items: lines(c), total: c.billBreakdown?.toPay?.value ?? c.cartTotalAmount };
+}
+
+export const cartWriteEnabled = () => process.env.CATALOG_MODE === "live" && process.env.ENABLE_CART_WRITE === "1";
+
+/**
+ * The ONLY write this app can make: fill the Instamart cart, after the shopper confirmed this exact send.
+ * Never retried (a second call could double quantities). Checkout, payment and orders stay blocked.
+ */
+export async function sendToCart(args: { addressId?: string; items: CartLine[]; mode: "add" | "replace"; confirmed: boolean }) {
+  if (args.confirmed !== true) throw new BlockedToolError("Cart write needs the shopper's confirmation");
+  if (!cartWriteEnabled()) throw new BlockedToolError("Cart write is switched off (ENABLE_CART_WRITE)");
+  const address = await resolveAddress(args.addressId);
+  const items = args.mode === "add" ? mergeCart((await getCart()).items, args.items) : args.items;
+  const c = (await callTool("update_cart", {
+    selectedAddressId: address.id,
+    items: items.map(({ spinId, skuId, quantity }) => ({ spinId, skuId, quantity })),
+  })) as RawCart & { removedOutOfStockItems?: { itemName?: string }[]; reducedQuantityItems?: { itemName: string; requestedQuantity: number; cappedQuantity: number }[] };
+  return {
+    address: address.label,
+    count: lines(c).reduce((n, l) => n + l.quantity, 0),
+    total: c.billBreakdown?.toPay?.value ?? c.cartTotalAmount,
+    removed: (c.removedOutOfStockItems ?? []).map((i) => i.itemName ?? "An item"),
+    reduced: (c.reducedQuantityItems ?? []).map((i) => `${i.itemName}: ${i.requestedQuantity} → ${i.cappedQuantity}`),
+  };
+}

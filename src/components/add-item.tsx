@@ -3,6 +3,7 @@
 import { Button, Spinner } from "@heroui/react";
 import { Plus, Search } from "lucide-react";
 import { useState } from "react";
+import { currentAddressId } from "@/lib/address";
 import { inr } from "@/lib/format";
 import type { Constraints, Product } from "@/lib/types";
 import { AvailabilityChip, ProductThumb } from "./item-card";
@@ -38,7 +39,7 @@ export function AddItem({ constraints, remaining, onAdd }: Props) {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, constraints }),
+        body: JSON.stringify({ query: q, constraints, addressId: currentAddressId() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);

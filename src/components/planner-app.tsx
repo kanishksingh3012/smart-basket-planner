@@ -3,6 +3,7 @@
 import { Button, Chip, toast, Toast } from "@heroui/react";
 import { ArrowLeft, ShoppingBasket } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { currentAddressId, rememberAddressId } from "@/lib/address";
 import { removeItem, setNote, setPriority, setQty, swap } from "@/lib/planner/basket";
 import { deleteSaved, listSaved, saveBasket, type SavedBasket } from "@/lib/saved";
 import type { BasketPlan, BudgetMode, CatalogErrorKind, ClarifyQuestion, Constraints } from "@/lib/types";
@@ -32,6 +33,21 @@ export function PlannerApp() {
   const [openSlot, setOpenSlot] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedBasket[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const [addresses, setAddresses] = useState<{ id: string; label: string }[]>([]);
+  const [addressId, setAddressId] = useState<string>();
+
+  // Live mode: load the shopper's address labels so searches use the right store.
+  useEffect(() => {
+    fetch("/api/cart")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.live) return;
+        setCatalogMode("live");
+        setAddresses(d.addresses ?? []);
+        setAddressId(currentAddressId() ?? d.addresses?.[0]?.id);
+      })
+      .catch(() => {});
+  }, []);
 
   // Saved baskets come from localStorage, which only exists after hydration.
   useEffect(() => {
@@ -82,7 +98,7 @@ export function PlannerApp() {
       const res = await fetch("/api/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mission: missionText, constraints: c, budgetMode: mode, parser }),
+        body: JSON.stringify({ mission: missionText, constraints: c, budgetMode: mode, parser, addressId }),
         signal: ac.signal,
       });
       const data = await res.json();
@@ -92,7 +108,7 @@ export function PlannerApp() {
       setCatalogMode(data.plan.catalogMode);
     } catch (e) {
       if ((e as Error).name === "AbortError") {
-        toast("Search cancelled. Your mission is unchanged.");
+        toast("Search cancelled. Your request is unchanged.");
         setStage(plan ? "basket" : "review");
       } else setError("network");
     } finally {
@@ -123,6 +139,28 @@ export function PlannerApp() {
           {catalogMode === "live" ? "Live Instamart" : "Sample data"} · Prototype
         </Chip>
       </header>
+
+      {addresses.length > 0 && (
+        <label className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+          <span className="text-muted">Deliver to</span>
+          <select
+            id="address"
+            value={addressId}
+            onChange={(e) => {
+              setAddressId(e.target.value);
+              rememberAddressId(e.target.value);
+              if (plan) toast("Address changed. Rebuild the basket to refresh stock and prices.");
+            }}
+            className="min-w-0 flex-1 bg-transparent text-right text-base font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {addresses.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <main className="flex flex-1 flex-col">
         {error ? (
@@ -186,7 +224,7 @@ export function PlannerApp() {
             onSave={(name) => {
               const s = saveBasket(name, plan);
               setSaved(listSaved());
-              toast(s ? `Saved “${s.name}”` : "Couldn't save — browser storage is unavailable");
+              toast(s ? `Saved “${s.name}”` : "Couldn't save. Your browser's storage is unavailable.");
             }}
             onCopy={async () => {
               const list = plan.items.map((i) => `${i.quantity} × ${i.product.name}${i.product.quantityLabel ? ` (${i.product.quantityLabel})` : ""}`).join("\n");

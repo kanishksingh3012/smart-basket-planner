@@ -5,16 +5,16 @@ import { Clock, KeyRound, SearchX, ShieldAlert, WifiOff } from "lucide-react";
 import type { CatalogErrorKind } from "@/lib/types";
 
 const COPY: Record<CatalogErrorKind | "network", { icon: typeof Clock; title: string; body: string }> = {
-  timeout: { icon: Clock, title: "Instamart search timed out", body: "Try fewer constraints or search again." },
+  timeout: { icon: Clock, title: "Instamart search timed out", body: "Try a simpler request, or search again." },
   rate_limited: { icon: Clock, title: "Too many searches right now", body: "Instamart asked us to slow down. Wait a few seconds, then try again." },
   auth_required: {
     icon: KeyRound,
     title: "Connect your Swiggy account",
-    body: "Live search needs a Swiggy login. Run `npm run swiggy:login` on the server, or switch to sample data (CATALOG_MODE=mock).",
+    body: "Live search needs a Swiggy login. Sign in again on the computer running this app (npm run swiggy:login), then try again.",
   },
-  tool_error: { icon: ShieldAlert, title: "Instamart returned an error", body: "Nothing was changed. You can try again or edit your mission." },
-  bad_input: { icon: SearchX, title: "That request didn't work", body: "Try describing your mission a little differently." },
-  blocked: { icon: ShieldAlert, title: "Action blocked", body: "This prototype only reads from Instamart. Cart, checkout and payment are disabled." },
+  tool_error: { icon: ShieldAlert, title: "Instamart returned an error", body: "Nothing was changed. You can try again or edit your request." },
+  bad_input: { icon: SearchX, title: "That request didn't work", body: "Try describing what you need a little differently." },
+  blocked: { icon: ShieldAlert, title: "Action blocked", body: "Checkout and payment are turned off in this app. You place the order in Swiggy." },
   network: { icon: WifiOff, title: "You seem to be offline", body: "Check your connection and try again." },
 };
 
@@ -30,7 +30,7 @@ export function StateView({ kind, onRetry, onEdit }: { kind: CatalogErrorKind | 
       <div className="mt-2 flex gap-2">
         {kind !== "blocked" && kind !== "auth_required" && <Button onPress={onRetry}>Try again</Button>}
         <Button variant="secondary" onPress={onEdit}>
-          Edit mission
+          Edit request
         </Button>
       </div>
     </div>

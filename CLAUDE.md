@@ -39,7 +39,8 @@ Primary: busy urban consumer who knows the occasion but won't browse hundreds of
 Endpoint `https://mcp.swiggy.com/im`. Setup: `claude mcp add --transport http swiggy-instamart https://mcp.swiggy.com/im` then OAuth in browser.
 Never assume tool names — use exact names/args from `docs/swiggy/DIGEST.md` (verified from docs) and confirm with tools/list on first connection.
 **Allowed**: search, category discovery, product details, availability/serviceability, cart *read*.
-**Blocked**: checkout, payment, order placement, address changes, any irreversible/consequential write. If preview vs write isn't distinguishable, don't call the write tool — build a local cart.
+**Cart write (owner-approved 2026-10-02)**: `update_cart` only via `sendToCart()` after the shopper confirms that exact send in the UI, live mode + `ENABLE_CART_WRITE=1`, never retried; it replaces the whole cart, so "add" merges with `get_cart` first.
+**Blocked**: checkout, payment, order placement, address changes, `clear_cart`, any other write. If preview vs write isn't distinguishable, don't call the write tool — build a local cart.
 
 ## 8. Architecture
 Mobile web UI → local app server/agent endpoint → (LLM reasoning layer, Instamart MCP client) → Instamart MCP server.

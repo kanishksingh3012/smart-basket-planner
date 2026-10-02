@@ -22,9 +22,9 @@ type Props = {
 };
 
 const BUDGET_MODES: { id: BudgetMode; label: string }[] = [
-  { id: "under_budget", label: "Under budget" },
-  { id: "coverage", label: "Cover all" },
-  { id: "quality", label: "Quality" },
+  { id: "under_budget", label: "Lowest price" },
+  { id: "coverage", label: "Balanced" },
+  { id: "quality", label: "Best rated" },
 ];
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -87,12 +87,12 @@ export function ConstraintsReview(p: Props) {
       <div className="rounded-2xl border border-border bg-surface p-4">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-ink-soft">&ldquo;{p.mission}&rdquo;</p>
-          <Button isIconOnly size="sm" variant="ghost" aria-label="Edit mission text" onPress={p.onEditMission}>
+          <Button isIconOnly size="sm" variant="ghost" aria-label="Edit your request" onPress={p.onEditMission}>
             <Pencil className="size-4" />
           </Button>
         </div>
         <p className="mt-2 text-xs text-muted">
-          {p.parser === "llm" ? "Understood with AI — check and correct anything below." : "Understood with basic parsing — check and correct anything below."}
+          Here&apos;s what we understood. Change anything that isn&apos;t right.
         </p>
       </div>
 
@@ -126,7 +126,7 @@ export function ConstraintsReview(p: Props) {
         </section>
       )}
 
-      <Row label="Mission">
+      <Row label="Type of shop">
         <div className="flex flex-wrap gap-2">
           {MISSION_TYPES.map((m) => (
             <button key={m} type="button" onClick={() => set({ missionType: m })} aria-pressed={c.missionType === m} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
@@ -158,7 +158,7 @@ export function ConstraintsReview(p: Props) {
           <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm">
             <span>
               Add pantry staples
-              <span className="block text-xs text-muted">Salt, oil, spices. Off assumes you have them.</span>
+              <span className="block text-xs text-muted">Salt, oil and spices. Leave this off if you already have them.</span>
             </span>
             <input type="checkbox" className="size-5 accent-[var(--accent)]" checked={c.includePantry} onChange={(e) => set({ includePantry: e.target.checked })} />
           </label>
@@ -174,7 +174,7 @@ export function ConstraintsReview(p: Props) {
             min={1}
             max={50}
             value={c.people ?? ""}
-            placeholder="—"
+            placeholder="Not set"
             onChange={(e) => set({ people: e.target.value ? Math.max(1, Math.min(50, Number(e.target.value))) : undefined })}
             className="w-full rounded-xl border border-border bg-surface px-3 py-2 tabular outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
@@ -209,7 +209,7 @@ export function ConstraintsReview(p: Props) {
         </div>
       </Row>
 
-      <Row label="Dietary">
+      <Row label="Diet">
         <div className="flex flex-wrap gap-2">
           {(["veg", "vegan", "no_onion_garlic", "sugar_free", "gluten_free"] as const).map((d) => {
             const on = c.dietary.includes(d);
@@ -223,7 +223,7 @@ export function ConstraintsReview(p: Props) {
           })}
         </div>
         {c.dietary.some((d) => d !== "veg" && d !== "vegan") && (
-          <p className="text-xs text-muted">Instamart may not label this — flagged items will need your check. This is not dietary advice.</p>
+          <p className="text-xs text-muted">Instamart doesn&apos;t always label this, so please check flagged items yourself. This isn&apos;t dietary advice.</p>
         )}
       </Row>
 
@@ -231,9 +231,9 @@ export function ConstraintsReview(p: Props) {
       <ListEditor label="Avoid" values={c.avoid} onChange={(v) => set({ avoid: v })} placeholder="Add ingredient or item…" />
       <ListEditor label="Preferred brands" values={c.brands} onChange={(v) => set({ brands: v })} placeholder="Add brand…" />
 
-      <Row label="Budget strategy">
+      <Row label="When choosing products">
         <ToggleButtonGroup
-          aria-label="Budget strategy"
+          aria-label="When choosing products"
           className="w-full"
           size="sm"
           selectionMode="single"
@@ -257,7 +257,7 @@ export function ConstraintsReview(p: Props) {
             {p.busy && <Spinner size="sm" color="current" />}
             {p.busy ? "Searching Instamart…" : "Build my basket"}
           </Button>
-          {!canBuild && <p className="mt-2 text-center text-xs text-muted">Pick at least one thing to include.</p>}
+          {!canBuild && <p className="mt-2 text-center text-xs text-muted">Choose at least one thing to include.</p>}
         </div>
       </div>
     </div>

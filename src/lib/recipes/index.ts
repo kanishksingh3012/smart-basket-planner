@@ -100,7 +100,7 @@ export function pickMenu(c: Constraints): { menu: Recipe[]; unknown: string[]; n
   const wanted = c.cuisine ?? "indian";
   const has = (k: string) => allRecipes().some((r) => r.cuisine === k && !violates(r, c));
   const cuisine = has(wanted) ? wanted : "indian";
-  const note = cuisine !== wanted ? `No ${wanted} recipes that fit your constraints yet, so I planned an Indian meal. Change dishes in Edit, or run npm run recipes:import for more cuisines.` : undefined;
+  const note = cuisine !== wanted ? `We don't have ${wanted.replace(/^\w/, (ch) => ch.toUpperCase())} recipes that fit yet, so we planned an Indian meal instead. You can change the dishes in Edit.` : undefined;
   const breakfast = c.categories.includes("breakfast") && !/dinner|lunch/.test(c.categories.join(" "));
   const pool = allRecipes()
     .filter((r) => r.cuisine === cuisine && !violates(r, c))

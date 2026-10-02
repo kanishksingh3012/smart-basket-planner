@@ -52,7 +52,7 @@ export function ItemCard({ item, onQty, onOpen }: Props) {
               </p>
             </div>
             <div className="text-right tabular">
-              <p className="font-semibold">{p.price === undefined ? "—" : inr(p.price * item.quantity)}</p>
+              <p className="font-semibold">{p.price === undefined ? "N/A" : inr(p.price * item.quantity)}</p>
               {p.price !== undefined && item.quantity > 1 && <p className="text-xs text-muted">{inr(p.price)} each</p>}
               {p.price === undefined && <p className="text-xs text-muted">Price not available</p>}
             </div>

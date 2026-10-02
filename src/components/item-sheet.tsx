@@ -66,7 +66,7 @@ export function ItemSheet({ item, onClose, onSwap, onRemove, onPriority, onNote 
                         <AvailabilityChip a={p.availability} />
                       </div>
                       <p className="text-xs text-muted">
-                        {p.veg === true ? "Marked vegetarian by Instamart" : p.veg === false ? "Not vegetarian" : "No veg/non-veg label returned"}
+                        {p.veg === true ? "Marked vegetarian by Instamart" : p.veg === false ? "Not vegetarian" : "Instamart doesn't label this as veg or non-veg"}
                         {p.rating !== undefined ? ` · Rated ${p.rating}★` : ""}
                       </p>
                     </div>
@@ -103,7 +103,7 @@ export function ItemSheet({ item, onClose, onSwap, onRemove, onPriority, onNote 
                   <section>
                     <p className="mb-2 text-sm font-medium">Substitutes</p>
                     {item.alternatives.length === 0 ? (
-                      <p className="text-sm text-muted">No other matching products were returned for this search.</p>
+                      <p className="text-sm text-muted">We didn&apos;t find other matching products.</p>
                     ) : (
                       <ul className="space-y-2">
                         {item.alternatives.map((a) => (
@@ -131,7 +131,7 @@ export function ItemSheet({ item, onClose, onSwap, onRemove, onPriority, onNote 
                       id="item-note"
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder="e.g. less spicy if possible"
+                      placeholder="For example, less spicy"
                       className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     />
                   </section>

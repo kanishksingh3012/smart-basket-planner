@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { mockSource, type CatalogSource } from "@/lib/catalog/source";
 import { normaliseProducts } from "@/lib/catalog/normalise";
 import { sampleSearch as sampleProducts } from "@/lib/catalog/sample-catalogue";
-import { BlockedToolError, callReadTool } from "@/lib/catalog/mcp-source";
+import { BlockedToolError, callReadTool, sendToCart } from "@/lib/catalog/mcp-source";
 import { ConstraintsSchema, type BasketPlan } from "@/lib/types";
 import { parseWithRules } from "./parse";
 import { buildPlan, clarifyQuestions, PlanError } from "./plan";
-import { addItem, applyBudgetPlan, budgetPlan, fewerBrands, replaceUnavailable, totalOf } from "./basket";
+import { addItem, applyBudgetPlan, mergeCart, budgetPlan, fewerBrands, replaceUnavailable, totalOf } from "./basket";
 
 const EXAMPLE =
   "I'm hosting six people tonight. I need vegetarian snacks and breakfast items under ₹1,200, preferably from trusted brands, delivered as soon as possible.";
@@ -162,5 +162,21 @@ describe("safety", () => {
   it("blocks every mutating Instamart tool before any network call", async () => {
     for (const t of ["update_cart", "checkout", "confirm_order", "create_address", "clear_cart"])
       await expect(callReadTool(t, {})).rejects.toBeInstanceOf(BlockedToolError);
+  });
+});
+
+describe("sending to the Instamart cart", () => {
+  const line = { spinId: "s1", skuId: "k1", quantity: 1 };
+  it("refuses without the shopper's confirmation, and when the write switch is off", async () => {
+    await expect(sendToCart({ items: [line], mode: "add", confirmed: false })).rejects.toBeInstanceOf(BlockedToolError);
+    await expect(sendToCart({ items: [line], mode: "add", confirmed: true })).rejects.toBeInstanceOf(BlockedToolError); // ENABLE_CART_WRITE unset
+  });
+  it("keeps existing cart lines and sums quantities when adding", () => {
+    const merged = mergeCart([{ spinId: "s1", skuId: "k1", quantity: 2 }, { spinId: "s9", skuId: "k9", quantity: 1 }], [line, { spinId: "s2", skuId: "k2", quantity: 3 }]);
+    expect(merged).toEqual([
+      { spinId: "s1", skuId: "k1", quantity: 3 },
+      { spinId: "s9", skuId: "k9", quantity: 1 },
+      { spinId: "s2", skuId: "k2", quantity: 3 },
+    ]);
   });
 });

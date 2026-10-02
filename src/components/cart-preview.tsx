@@ -1,12 +1,13 @@
 "use client";
 
 import { Alert, Button } from "@heroui/react";
-import { Copy, Lock, Save } from "lucide-react";
+import { Copy, Save } from "lucide-react";
 import { useState } from "react";
 import { inr } from "@/lib/format";
 import { totalOf } from "@/lib/planner/basket";
 import type { BasketPlan } from "@/lib/types";
 import { AvailabilityChip } from "./item-card";
+import { SendToCart } from "./send-to-cart";
 
 type Props = { plan: BasketPlan; onBack: () => void; onSave: (name: string) => void; onCopy: () => void };
 
@@ -23,7 +24,7 @@ export function CartPreview({ plan, onBack, onSave, onCopy }: Props) {
     <div className="flex flex-1 flex-col gap-4 pb-8">
       <div className="pt-2">
         <h1 className="text-2xl font-semibold tracking-tight">Basket preview</h1>
-        <p className="text-sm text-muted">Check everything before it goes anywhere.</p>
+        <p className="text-sm text-muted">Review your basket before you send it.</p>
       </div>
 
       <Alert status="default">
@@ -48,7 +49,7 @@ export function CartPreview({ plan, onBack, onSave, onCopy }: Props) {
                 </div>
               )}
             </div>
-            <p className="shrink-0 text-sm tabular">{i.product.price === undefined ? "—" : inr(i.product.price * i.quantity)}</p>
+            <p className="shrink-0 text-sm tabular">{i.product.price === undefined ? "N/A" : inr(i.product.price * i.quantity)}</p>
           </li>
         ))}
       </ul>
@@ -73,17 +74,12 @@ export function CartPreview({ plan, onBack, onSave, onCopy }: Props) {
             {total > plan.constraints.budget ? `${inr(total - plan.constraints.budget)} over` : `${inr(plan.constraints.budget - total)} under`} your {inr(plan.constraints.budget)} budget
           </p>
         )}
-        <p className="pt-1 text-xs text-muted">Excludes delivery, handling and coupons — Instamart calculates those at checkout.</p>
+        <p className="pt-1 text-xs text-muted">Delivery, handling and coupons aren&apos;t included. Instamart adds them at checkout.</p>
         {noPrice > 0 && <p className="text-xs text-warning">{noPrice} item(s) without a price are not included.</p>}
         {flagged.length > 0 && <p className="text-xs text-warning">{flagged.length} item(s) are not confirmed in stock.</p>}
       </dl>
 
-      <Button className="w-full" size="lg" isDisabled aria-describedby="send-note">
-        <Lock className="size-4" /> Send to Instamart cart
-      </Button>
-      <p id="send-note" className="-mt-2 text-center text-xs text-muted">
-        Disabled in this prototype. A real version would ask you to confirm first, then add items to your cart — never pay or order automatically.
-      </p>
+      <SendToCart plan={plan} />
 
       <form
         className="space-y-2 rounded-2xl border border-border bg-surface p-4"

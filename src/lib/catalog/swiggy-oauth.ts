@@ -9,7 +9,8 @@ import type {
 
 /** Local-only credential store. `.swiggy/` is gitignored and never sent to the browser. */
 const STORE = path.join(process.cwd(), ".swiggy", "oauth.json");
-export const REDIRECT_URL = "http://localhost:3000/oauth/callback";
+/** Callback for the one-time CLI login. Port 3000 matches Swiggy's docs; override if that port is busy. */
+export const REDIRECT_URL = `http://localhost:${process.env.SWIGGY_REDIRECT_PORT ?? 3000}/oauth/callback`;
 export const IM_SERVER_URL = "https://mcp.swiggy.com/im";
 
 type Store = { client?: OAuthClientInformationMixed; tokens?: OAuthTokens; verifier?: string; savedAt?: number };

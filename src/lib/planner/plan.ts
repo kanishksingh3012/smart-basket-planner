@@ -32,7 +32,7 @@ export function clarifyQuestions(c: Constraints): ClarifyQuestion[] {
   if (!c.budget && c.missionType !== "emergency")
     q.push({
       id: "budget",
-      text: "Any budget in mind?",
+      text: "Do you have a budget?",
       options: [500, 1000, 2000].map((n) => ({ label: `₹${n.toLocaleString("en-IN")}`, value: n })).concat({ label: "No limit", value: 0 }),
     });
   return q.slice(0, 2);
@@ -107,25 +107,25 @@ export async function buildPlan(args: {
 
   if (note) warnings.push({ kind: "conflict", text: note });
   if (unknown.length)
-    warnings.push({ kind: "no_results", text: `I don't have a recipe for ${unknown.join(", ")} yet, so I searched Instamart for it by name.` });
+    warnings.push({ kind: "no_results", text: `We don't have a recipe for ${unknown.join(", ")} yet, so we searched Instamart for it by name.` });
   if (failures.length)
     warnings.push({ kind: "partial", text: `Some product details are unavailable (${failures.length} of ${results.length} searches failed). You can continue with the items we found.` });
-  if (missing.length) warnings.push({ kind: "no_results", text: `Nothing suitable found for: ${missing.join(", ")}.` });
+  if (missing.length) warnings.push({ kind: "no_results", text: `We couldn't find a good match for: ${missing.join(", ")}.` });
   const unavailable = items.filter((i) => i.product.availability === "unavailable");
-  if (unavailable.length) warnings.push({ kind: "unavailable", text: `${unavailable.length} item(s) are out of stock — tap to pick a substitute.` });
-  if (unverifiedDiet) warnings.push({ kind: "uncertain", text: `${unverifiedDiet} item(s) have no veg label from Instamart — please check before ordering.` });
+  if (unavailable.length) warnings.push({ kind: "unavailable", text: `${unavailable.length} item(s) are out of stock. Tap Swap to choose a substitute.` });
+  if (unverifiedDiet) warnings.push({ kind: "uncertain", text: `Instamart doesn't label ${unverifiedDiet} item(s) as veg or non-veg. Please check them before ordering.` });
   const total = totalOf(items);
   if (c.budget && total > c.budget) warnings.push({ kind: "budget", text: `Basket is ${inr(total - c.budget)} over your ${inr(c.budget)} budget.` });
 
   const who = [c.people && `${c.people} people`, c.budget && `under ${inr(c.budget)}`, c.dietary.length && c.dietary.join(", ")].filter(Boolean).join(" · ");
   const pantry = assumedPantry(menu).filter(() => !c.includePantry);
   const steps = [
-    `Read your mission as ${MISSION_LABEL[c.missionType]}${who ? ` (${who})` : ""}${parser === "llm" ? "" : " using basic parsing"}.`,
+    `Understood your request as ${MISSION_LABEL[c.missionType]}${who ? ` (${who})` : ""}.`,
     menu.length ? `Planned the menu: ${menu.map((m) => m.name).join(" + ")} (${menu.map((m) => (m.source === "curated" ? "curated recipe" : "TheMealDB")).filter((v, i, a) => a.indexOf(v) === i).join(", ")}).` : "",
     pantry.length ? `Assumed you already have: ${pantry.join(", ")}. Turn on pantry staples to add them.` : "",
-    `Searched Instamart ${source.mode === "live" ? "live" : "(sample data)"} for ${intents.length} things: ${intents.map((i) => i.query).join(", ")}.`,
+    `Searched Instamart ${source.mode === "live" ? "live" : "(sample data)"} for ${intents.length} items: ${intents.map((i) => i.query).join(", ")}.`,
     excluded ? `Filtered out ${excluded} product(s) that didn't match your dietary or avoid list.` : "",
-    "Ranked by: fits your constraints → closest name match → in stock → budget → brand preference.",
+    "Picked products that fit your needs, match each item closely, are in stock and suit your budget.",
   ].filter(Boolean);
 
   return {

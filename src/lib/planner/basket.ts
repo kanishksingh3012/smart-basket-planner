@@ -75,7 +75,7 @@ export function replaceUnavailable(plan: BasketPlan): { plan: BasketPlan; change
     if (i.product.availability !== "unavailable" || i.userLocked) continue;
     const alt = bestAvailable(i.alternatives);
     if (!alt) continue;
-    next = swap(next, i.slot, alt.id, `${i.product.name} is out of stock — replaced with the closest in-stock option.`);
+    next = swap(next, i.slot, alt.id, `${i.product.name} is out of stock, so we replaced it with the closest in-stock option.`);
     changes.push(`${i.product.name} → ${alt.name}`);
   }
   return { plan: next, changes };
@@ -151,10 +151,23 @@ export function applyBudgetPlan(plan: BasketPlan, steps: BudgetStep[]): BasketPl
     if (s.kind === "cheaper" && s.toId) next = swap(next, s.slot, s.toId, "Swapped for a cheaper option to fit your budget.");
     if (s.kind === "reduce") {
       const to = s.toQty ?? 0;
-      if (to > 0) next = update(next, s.slot, (x) => ({ ...x, quantity: to, reason: `${x.reason} Quantity trimmed to fit your budget.` }));
+      if (to > 0) next = update(next, s.slot, (x) => ({ ...x, quantity: to, reason: `${x.reason} Quantity reduced to fit your budget.` }));
     }
   }
   return next;
 }
 
 export const sortByPriority = (items: BasketItem[]) => [...items].sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+
+export type CartLine = { spinId: string; skuId: string; quantity: number; name?: string };
+
+/** "Add to my cart": Swiggy's update_cart replaces the whole cart, so existing lines are kept and quantities summed. */
+export function mergeCart(existing: CartLine[], incoming: CartLine[]): CartLine[] {
+  const out = new Map(existing.map((l) => [l.spinId, { ...l }]));
+  for (const l of incoming) {
+    const hit = out.get(l.spinId);
+    if (hit) hit.quantity += l.quantity;
+    else out.set(l.spinId, { ...l });
+  }
+  return [...out.values()];
+}
