@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Button, Drawer, Spinner } from "@heroui/react";
-import { Lock, ShoppingCart } from "lucide-react";
+import { ExternalLink, Lock, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { currentAddressId } from "@/lib/address";
 import type { BasketPlan } from "@/lib/types";
@@ -113,7 +113,7 @@ export function SendToCart({ plan }: { plan: BasketPlan }) {
                     </p>
                     {result.removed.length > 0 && <p className="text-sm text-warning">Swiggy left out (out of stock): {result.removed.join(", ")}.</p>}
                     {result.reduced.length > 0 && <p className="text-sm text-warning">Swiggy reduced: {result.reduced.join("; ")}.</p>}
-                    <p className="text-sm text-ink-soft">Open the Swiggy app to review and check out. Nothing is ordered until you do.</p>
+                    <p className="text-sm text-ink-soft">Open Instamart to review your cart and check out. Nothing is ordered until you do.</p>
                   </>
                 ) : (
                   <>
@@ -133,7 +133,7 @@ export function SendToCart({ plan }: { plan: BasketPlan }) {
                         <Alert.Indicator />
                         <Alert.Content>
                           <Alert.Title>Your Instamart cart already has {status.cartCount} items</Alert.Title>
-                          <Alert.Description>Add this basket to them, or replace the cart with this basket.</Alert.Description>
+                          <Alert.Description>Add this basket to them, or replace them with it.</Alert.Description>
                         </Alert.Content>
                       </Alert>
                     )}
@@ -147,8 +147,23 @@ export function SendToCart({ plan }: { plan: BasketPlan }) {
                   </>
                 )}
               </Drawer.Body>
-              <Drawer.Footer className="flex-wrap justify-end gap-2">
-                {result || status?.error || !status ? (
+              <Drawer.Footer className="flex-nowrap justify-end gap-2">
+                {result ? (
+                  <>
+                    <Button slot="close" variant="tertiary">
+                      Close
+                    </Button>
+                    {/* Universal link: opens the Swiggy app on a phone, the website elsewhere. */}
+                    <a
+                      href="https://www.swiggy.com/instamart"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                    >
+                      Open Instamart <ExternalLink aria-hidden className="size-4" />
+                    </a>
+                  </>
+                ) : status?.error || !status ? (
                   <Button slot="close">Close</Button>
                 ) : (
                   <>
@@ -156,12 +171,12 @@ export function SendToCart({ plan }: { plan: BasketPlan }) {
                       Cancel
                     </Button>
                     {hasCart && (
-                      <Button variant="secondary" isDisabled={Boolean(busy) || !status.writeEnabled} onPress={() => send("replace")}>
-                        {busy === "replace" && <Spinner size="sm" color="current" />} Replace my cart
+                      <Button variant="secondary" className="whitespace-nowrap" isDisabled={Boolean(busy) || !status.writeEnabled} onPress={() => send("replace")}>
+                        {busy === "replace" && <Spinner size="sm" color="current" />} Replace cart
                       </Button>
                     )}
-                    <Button isDisabled={Boolean(busy) || !status.writeEnabled} onPress={() => send("add")}>
-                      {busy === "add" && <Spinner size="sm" color="current" />} {hasCart ? "Add to my cart" : "Send to my cart"}
+                    <Button className="whitespace-nowrap" isDisabled={Boolean(busy) || !status.writeEnabled} onPress={() => send("add")}>
+                      {busy === "add" && <Spinner size="sm" color="current" />} {hasCart ? "Add to cart" : "Send to cart"}
                     </Button>
                   </>
                 )}

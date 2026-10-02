@@ -7,6 +7,7 @@ import { currentAddressId, rememberAddressId } from "@/lib/address";
 import { removeItem, setNote, setPriority, setQty, swap } from "@/lib/planner/basket";
 import { deleteSaved, listSaved, saveBasket, type SavedBasket } from "@/lib/saved";
 import type { BasketPlan, BudgetMode, CatalogErrorKind, ClarifyQuestion, Constraints } from "@/lib/types";
+import { AddressPicker } from "./address-picker";
 import { BasketView } from "./basket-view";
 import { CartPreview } from "./cart-preview";
 import { ConstraintsReview } from "./constraints-review";
@@ -140,27 +141,16 @@ export function PlannerApp() {
         </Chip>
       </header>
 
-      {addresses.length > 0 && (
-        <label className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-          <span className="text-muted">Deliver to</span>
-          <select
-            id="address"
-            value={addressId}
-            onChange={(e) => {
-              setAddressId(e.target.value);
-              rememberAddressId(e.target.value);
-              if (plan) toast("Address changed. Rebuild the basket to refresh stock and prices.");
-            }}
-            className="min-w-0 flex-1 bg-transparent text-right text-base font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            {addresses.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      <AddressPicker
+        addresses={addresses}
+        value={addressId}
+        onChange={(id) => {
+          if (id === addressId) return;
+          setAddressId(id);
+          rememberAddressId(id);
+          if (plan) toast("Address changed. Rebuild the basket to refresh stock and prices.");
+        }}
+      />
 
       <main className="flex flex-1 flex-col">
         {error ? (
