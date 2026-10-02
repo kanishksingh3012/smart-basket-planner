@@ -66,7 +66,11 @@ export function SendToCart({ plan }: { plan: BasketPlan }) {
           <Lock className="size-4" /> Send to Instamart cart
         </Button>
         <p id="send-note" className="-mt-2 text-center text-xs text-muted">
-          This basket uses sample products, so it can&apos;t be sent. Connect Swiggy and run in live mode to send a real one.
+          This demo uses sample products, so there&apos;s nothing real to send. To fill your own Instamart cart,{" "}
+          <a href="https://github.com/kanishksingh3012/smart-basket-planner#set-up-your-own-live-version" target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
+            set up your own copy
+          </a>
+          .
         </p>
       </>
     );

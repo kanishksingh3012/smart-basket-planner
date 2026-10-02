@@ -1,6 +1,6 @@
 # Smart Basket Planner
 
-> **Independent prototype**, not an official Swiggy or Instamart product. It reads the catalogue through Swiggy's Instamart MCP server (or recorded sample data) and **never places orders, writes to your cart, or takes payment**.
+> **Independent prototype**, not an official Swiggy or Instamart product. It reads the catalogue through Swiggy's Instamart MCP server (or sample data). In your own live setup it can fill your Instamart cart, only after you confirm each send. It **never checks out, places orders, or takes payment**.
 
 **Live demo (open on your phone):** https://smart-basket-planner.vercel.app
 
@@ -15,7 +15,7 @@ Type a shopping *mission* — "hosting six people tonight, veg snacks and breakf
 | **Idea** | An explainable basket planner: mission → constraints → basket → substitutions → cart preview. |
 | **Key design decision** | Conversational *input*, structured *editing*. No chat bubbles: the result is cards with reasons, stock chips, quantity steppers and a bottom-sheet for swaps. Editing is easier than accepting. |
 | **Technical decision** | MCP for live discovery; **local, deterministic logic** for ranking, budget and safety. The LLM never sees catalogue data, so it can't invent prices or stock. |
-| **Trade-off** | No automatic checkout. Trust and reversibility matter more than one fewer tap. "Send to Instamart cart" is shown, disabled, and explained. |
+| **Trade-off** | No automatic checkout. Trust and reversibility matter more than one fewer tap. The app fills your cart only after you confirm, and you place the order in Swiggy. |
 | **Accuracy** | A free recipe base turns "Chinese dinner for me and my girlfriend, ₹1,000" into a menu (Veg Hakka Noodles + Chilli Paneer) and buys its real ingredients, instead of guessing from a generic "dinner" list. |
 | **Evaluation** | 26 synthetic missions → [docs/eval-report.md](docs/eval-report.md): 100% constraint extraction, 100% budget compliance, 100% unavailable-item transparency, 0.8 clarifying questions per mission. |
 | **Next** | Personalised repeat baskets (`your_go_to_items`), feedback-driven ranking, and a confirmed, reversible cart hand-off. |
@@ -51,7 +51,7 @@ Server
 Basket JSON → every edit, swap, undo, quick action and budget plan runs in the browser (pure functions).
 ```
 
-**Safety:** mutating MCP tools (`update_cart`, `checkout`, `confirm_order`, address tools…) are refused by an allowlist *before* any network call (unit-tested). Credentials live in `.swiggy/` (gitignored, 0600). Only product lists are ever recorded, never addresses or phone numbers.
+**Safety:** the only write is `update_cart`, through one function that needs the shopper's confirmation for that exact send, live mode and `ENABLE_CART_WRITE=1`, and is never retried. Swiggy replaces the whole cart on update, so the app asks whether to add to or replace existing items. `checkout`, `confirm_order`, payment and address tools are refused *before* any network call (unit-tested). Credentials live in `.swiggy/` (gitignored, 0600). Only product lists are ever recorded, never addresses or phone numbers.
 
 **Token economy:** a clear mission costs **0 LLM tokens**; an ambiguous one costs about 600. Edits cost 0. Swiggy calls per mission: 1 address lookup (cached) + ≤ 12 searches.
 
@@ -66,7 +66,19 @@ npm run eval                      # regenerates docs/eval-report.md
 npm run recipes:import            # optional: ~300 extra recipes from TheMealDB (free, gitignored)
 ```
 
-**Live Instamart:** stop the dev server (the login uses port 3000), run `npm run swiggy:login` and sign in with phone + OTP, set `CATALOG_MODE=live` in `.env.local`, then `npm run dev`. Run `npm run record` to save real search results as fixtures, so the mock mode demos real catalogue data.
+## Try it, or run your own
+
+**Try the demo.** [smart-basket-planner.vercel.app](https://smart-basket-planner.vercel.app) runs on sample products with fictional brands. You can plan, edit, swap and preview baskets. Nothing can be sent anywhere.
+
+## Set up your own live version
+This connects the app to **your** Swiggy account on **your** computer. Your login stays in `.swiggy/` on your machine and is never committed.
+
+1. Clone the repo and run `npm install`.
+2. `cp .env.example .env.local`, then set `CATALOG_MODE=live`. Set `ENABLE_CART_WRITE=1` only if you want "Send to Instamart cart" to work.
+3. Run `npm run swiggy:login` and sign in with your phone number and OTP. The login uses port 3000; if that port is busy, run `SWIGGY_REDIRECT_PORT=8765 npm run swiggy:login`. The login lasts 5 days.
+4. Run `npm run dev` and open the app. Pick your delivery address under "Deliver to", plan a basket, and send it to your cart after confirming.
+
+Swiggy's developer access is invite-based, so the login may be refused for some accounts. Don't deploy your login to a public site: anyone who opens it would be using your Swiggy account. Use it on your own computer, or on your phone over the same Wi-Fi.
 
 ## Screens & states
 Mission input · constraints review (with ≤ 2 quick questions) · basket plan · item/substitution sheet · budget breakdown & reduction plan · cart preview · saved baskets.

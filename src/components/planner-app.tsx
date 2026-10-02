@@ -255,6 +255,15 @@ export function PlannerApp() {
 
       {stage === "input" && (
         <footer className="py-6 text-center text-xs text-muted">
+          {catalogMode === "mock" && (
+            <span className="mb-1 block">
+              You&apos;re using the demo with sample products.{" "}
+              <a href="https://github.com/kanishksingh3012/smart-basket-planner#set-up-your-own-live-version" target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
+                Set up your own live version
+              </a>
+              .
+            </span>
+          )}
           Independent prototype, not an official Swiggy or Instamart product. It never places orders or makes payments.
         </footer>
       )}
