@@ -14,7 +14,8 @@
     "record": "tsx scripts/record-fixtures.ts",
     "eval": "NO_MOCK_LATENCY=1 CURATED_ONLY=1 tsx scripts/eval.ts",
     "recipes:import": "tsx scripts/import-mealdb.ts",
-    "prebuild": "tsx scripts/import-mealdb.ts --if-missing --soft"
+    "prebuild": "tsx scripts/import-mealdb.ts --if-missing --soft",
+    "phone": "next build && next start -H 0.0.0.0 -p 3100"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.84",

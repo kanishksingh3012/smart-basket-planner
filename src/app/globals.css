@@ -43,3 +43,19 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* iOS zooms into any field smaller than 16px; keep fields at 16px on touch devices so the app doesn't jump. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Installed to the home screen: don't let the page rubber-band like a website. */
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior: none;
+  }
+}

@@ -7,6 +7,7 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Smart Basket Planner",
   description: "Turn a shopping mission into an editable, availability-aware grocery basket. Independent prototype.",
+  appleWebApp: { capable: true, title: "Basket Planner", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#fc8019" };

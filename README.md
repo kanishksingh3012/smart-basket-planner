@@ -78,6 +78,8 @@ This connects the app to **your** Swiggy account on **your** computer. Your logi
 3. Run `npm run swiggy:login` and sign in with your phone number and OTP. The login uses port 3000; if that port is busy, run `SWIGGY_REDIRECT_PORT=8765 npm run swiggy:login`. The login lasts 5 days.
 4. Run `npm run dev` and open the app. Pick your delivery address under "Deliver to", plan a basket, and send it to your cart after confirming.
 
+**On your phone:** run `npm run phone` on your computer, open `http://<your-computer's-IP>:3100` on a phone on the same Wi-Fi, and use the browser's "Add to Home Screen". It opens full-screen like an app, and "Open Instamart" hands off to the Swiggy app.
+
 Swiggy's developer access is invite-based, so the login may be refused for some accounts. Don't deploy your login to a public site: anyone who opens it would be using your Swiggy account. Use it on your own computer, or on your phone over the same Wi-Fi.
 
 ## Screens & states
